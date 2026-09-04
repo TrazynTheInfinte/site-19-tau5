@@ -190,20 +190,30 @@ export function useHostResolver(
 ) {
   const resolvingRef = useRef(false)
 
+  // Latest players via a ref, not a dependency: `players` gets a new array reference on
+  // every presence-heartbeat snapshot (every ~5s per connected player), and including it as
+  // a dependency here would tear down/rebuild the poll interval — and fire an extra
+  // immediate read-heavy `check()` — on every single one of those snapshots.
+  const playersRef = useRef(players)
+  useEffect(() => {
+    playersRef.current = players
+  }, [players])
+
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'night') return
     let cancelled = false
 
     const check = async () => {
       if (resolvingRef.current || cancelled) return
+      const currentPlayers = playersRef.current
       const roles = await getAllSecretRoles(lobbyId)
-      const required = requiredNightActorUids(players, roles)
+      const required = requiredNightActorUids(currentPlayers, roles)
       const actions = await getNightActions(lobbyId, lobby.cycle)
       const submittedUids = new Set(actions.map((a) => a.actorUid))
       const allSubmitted = required.every((r) => submittedUids.has(r))
       if (allSubmitted && !cancelled) {
         resolvingRef.current = true
-        await resolveNightCycle(lobbyId, lobby.cycle, players)
+        await resolveNightCycle(lobbyId, lobby.cycle, currentPlayers)
         resolvingRef.current = false
       }
     }
@@ -214,7 +224,7 @@ export function useHostResolver(
       cancelled = true
       clearInterval(interval)
     }
-  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, players])
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle])
 
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid) return
@@ -225,7 +235,7 @@ export function useHostResolver(
       if (resolvingRef.current || cancelled) return
       if (!lobby.phaseDeadline || Date.now() < lobby.phaseDeadline) return
       resolvingRef.current = true
-      await resolveVotePhase(lobbyId, lobby, players)
+      await resolveVotePhase(lobbyId, lobby, playersRef.current)
       resolvingRef.current = false
     }
 
@@ -235,5 +245,5 @@ export function useHostResolver(
       cancelled = true
       clearInterval(interval)
     }
-  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline, players])
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline])
 }

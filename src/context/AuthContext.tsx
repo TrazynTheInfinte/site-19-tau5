@@ -5,19 +5,24 @@ import { ensureSignedIn } from '../firebase/anonAuth'
 interface AuthContextValue {
   uid: string | null
   loading: boolean
+  error: string | null
 }
 
-const AuthContext = createContext<AuthContextValue>({ uid: null, loading: true })
+const AuthContext = createContext<AuthContextValue>({ uid: null, loading: true, error: null })
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     ensureSignedIn()
       .then((u) => {
         if (!cancelled) setUser(u)
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to sign in')
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -27,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  return <AuthContext.Provider value={{ uid: user?.uid ?? null, loading }}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ uid: user?.uid ?? null, loading, error }}>{children}</AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthContextValue {

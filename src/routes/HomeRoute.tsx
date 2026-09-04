@@ -6,7 +6,7 @@ import { createLobby, joinLobby } from '../firebase/repository/lobbyRepository'
 const DISPLAY_NAME_KEY = 'site19_display_name'
 
 export default function HomeRoute() {
-  const { uid, loading } = useAuth()
+  const { uid, loading, error: authError } = useAuth()
   const navigate = useNavigate()
   const [displayName, setDisplayName] = useState(() => localStorage.getItem(DISPLAY_NAME_KEY) ?? '')
   const [joinCode, setJoinCode] = useState('')
@@ -51,6 +51,15 @@ export default function HomeRoute() {
   return (
     <div>
       <h1>Site-19: Tau-5 Protocol</h1>
+      {authError && (
+        <div className="card" style={{ borderColor: '#ff6b6b' }}>
+          <strong>Sign-in failed:</strong> {authError}
+          <p>
+            Most likely cause: Anonymous sign-in isn't enabled in the Firebase console yet (Authentication → Sign-in
+            method → Anonymous), or the values in <code>.env.local</code> don't match your Firebase project.
+          </p>
+        </div>
+      )}
       <div className="card">
         <label>
           Display name

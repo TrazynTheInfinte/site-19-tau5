@@ -13,7 +13,10 @@ export function useHostHeartbeat(lobbyId: string | null, uid: string | null, lob
       heartbeatHost(lobbyId, uid)
     }, HEARTBEAT_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [lobbyId, uid, lobby?.hostUid, lobby])
+    // Deliberately depends only on the primitive hostUid, not the whole `lobby` object —
+    // that object gets a new reference on every snapshot (including this heartbeat's own
+    // writes), which would otherwise tear down and restart the interval every 5s for no reason.
+  }, [lobbyId, uid, lobby?.hostUid])
 }
 
 /** Every connected player's own presence heartbeat, used for reconnect detection. */
@@ -45,5 +48,5 @@ export function useHostTakeoverWatch(lobbyId: string | null, uid: string | null,
     const staleness = Date.now() - lobby.hostLastSeen
     if (staleness < HOST_STALE_MS) return
     claimHost(lobbyId, uid)
-  }, [lobbyId, uid, lobby])
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.status, lobby?.hostLastSeen])
 }
