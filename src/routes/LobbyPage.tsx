@@ -1,17 +1,58 @@
 import { useParams } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { LobbyProvider, useLobby } from '../context/LobbyContext'
 import { GameStateProvider } from '../context/GameStateContext'
 import { useHostHeartbeat, useHostTakeoverWatch, usePlayerPresence } from '../host/presence'
 import { useHostResolver } from '../host/resolver'
-import { rejoinLobby } from '../firebase/repository/lobbyRepository'
+import { joinLobby, rejoinLobby } from '../firebase/repository/lobbyRepository'
 import { useEffect, useRef } from 'react'
 import LobbyRoute from './LobbyRoute'
 import GameRoute from './GameRoute'
 
+const DISPLAY_NAME_KEY = 'site19_display_name'
+
+/** Shown when a signed-in visitor reaches a lobby URL directly (e.g. scanning the QR code)
+ * without having gone through the home page's join form first. */
+function JoinLobbyPrompt({ code, uid }: { code: string; uid: string }) {
+  const [displayName, setDisplayName] = useState(() => localStorage.getItem(DISPLAY_NAME_KEY) ?? '')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleJoin() {
+    if (!displayName.trim()) return
+    setBusy(true)
+    setError(null)
+    try {
+      localStorage.setItem(DISPLAY_NAME_KEY, displayName.trim())
+      await joinLobby(code, uid, displayName.trim())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to join lobby')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2>Join lobby {code}</h2>
+      <label>
+        Display name
+        <br />
+        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={24} />
+      </label>
+      <br />
+      <button disabled={!displayName.trim() || busy} onClick={handleJoin} style={{ marginTop: '0.5rem' }}>
+        {busy ? 'Joining...' : 'Join'}
+      </button>
+      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+    </div>
+  )
+}
+
 function LobbyPageInner({ code }: { code: string }) {
-  const { uid } = useAuth()
-  const { lobby, players, loading } = useLobby()
+  const { uid, error: authError } = useAuth()
+  const { lobby, players, loading, error: lobbyError } = useLobby()
 
   usePlayerPresence(code, uid)
   useHostHeartbeat(code, uid, lobby)
@@ -33,8 +74,17 @@ function LobbyPageInner({ code }: { code: string }) {
     }
   }, [code, uid, players])
 
+  if (authError) return <p style={{ color: '#ff6b6b' }}>Sign-in failed: {authError}</p>
+  if (lobbyError) return <p style={{ color: '#ff6b6b' }}>Couldn't load this lobby: {lobbyError}</p>
   if (loading) return <p>Loading lobby...</p>
   if (!lobby) return <p>Lobby not found.</p>
+  if (!uid) return <p>Signing in...</p>
+
+  const isMember = players.some((p) => p.uid === uid)
+  if (!isMember) {
+    if (lobby.status !== 'lobby') return <p>This game has already started — you can't join now.</p>
+    return <JoinLobbyPrompt code={code} uid={uid} />
+  }
 
   if (lobby.status === 'lobby') return <LobbyRoute />
   return (

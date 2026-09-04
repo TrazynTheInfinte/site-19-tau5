@@ -91,16 +91,28 @@ export async function rejoinLobby(code: string, uid: string): Promise<void> {
   await updateDoc(playerDocRef(code, uid), { connected: true, lastSeen: Date.now() })
 }
 
-export function subscribeLobby(lobbyId: string, cb: (lobby: LobbyDoc | null) => void): Unsubscribe {
-  return onSnapshot(lobbyDocRef(lobbyId), (snap) => {
-    cb(snap.exists() ? (snap.data() as LobbyDoc) : null)
-  })
+export function subscribeLobby(
+  lobbyId: string,
+  cb: (lobby: LobbyDoc | null) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    lobbyDocRef(lobbyId),
+    (snap) => cb(snap.exists() ? (snap.data() as LobbyDoc) : null),
+    (err) => onError?.(err),
+  )
 }
 
-export function subscribePlayers(lobbyId: string, cb: (players: (PlayerDoc & { uid: string })[]) => void): Unsubscribe {
-  return onSnapshot(collection(db, 'lobbies', lobbyId, 'players'), (snap) => {
-    cb(snap.docs.map((d) => ({ ...(d.data() as PlayerDoc), uid: d.id })))
-  })
+export function subscribePlayers(
+  lobbyId: string,
+  cb: (players: (PlayerDoc & { uid: string })[]) => void,
+  onError?: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, 'lobbies', lobbyId, 'players'),
+    (snap) => cb(snap.docs.map((d) => ({ ...(d.data() as PlayerDoc), uid: d.id }))),
+    (err) => onError?.(err),
+  )
 }
 
 export async function setPlayerConnected(lobbyId: string, uid: string, connected: boolean): Promise<void> {
