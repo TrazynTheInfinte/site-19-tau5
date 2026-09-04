@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// Security model for Site-19: Tau-5 Protocol (Firebase Spark plan, no Cloud Functions).
+// Because there's no trusted server, the lobby host's client acts as the resolver for
+// role assignment and night-action resolution (see docs/adr/ and CONTEXT.md). These rules
+// enforce the hidden-information boundary as far as Firestore rules can:
+//   - secretRoles / nightResults: readable only by the player themself or the current host.
+//   - nightActions: readable ONLY by the host — this is where hidden info actually lives.
+//   - Known, accepted limitation: ghost tip anonymity (authorUid) is not hidden from a
+//     technically capable reader of raw Firestore; and the host has broad read access to
+//     secretRoles by design. Both are accepted trade-offs for a friends-only game.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /lobbies/{lobbyId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (
+        resource.data.hostUid == request.auth.uid ||
+        // host takeover: only allowed when writing hostUid itself, guarded by staleness client-side
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostUid', 'hostLastSeen'])
+      );
+
+      match /players/{uid} {
+        allow read: if request.auth != null;
+        allow create: if request.auth.uid == uid;
+        allow update: if request.auth.uid == uid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /secretRoles/{uid} {
+        allow read: if request.auth.uid == uid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+        allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /nightActions/{actionId} {
+        allow create: if request.auth.uid == request.resource.data.actorUid;
+        allow read: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /nightResults/{resultId} {
+        allow read: if request.auth.uid == resource.data.recipientUid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+        allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /votes/{voteId} {
+        allow create: if request.auth.uid == request.resource.data.voterUid;
+        allow read: if request.auth != null;
+      }
+
+      match /publicCycleLog/{cycleId} {
+        allow read: if request.auth != null;
+        allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /ghostTips/{tipId} {
+        allow create: if request.auth.uid == request.resource.data.authorUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == false;
+        allow read: if request.auth != null;
+      }
+    }
+  }
+}
