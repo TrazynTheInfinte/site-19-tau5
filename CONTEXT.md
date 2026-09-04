@@ -47,7 +47,9 @@ Ghost anonymous tips are free-text, sent anonymously to all living players, once
 
 **Lobby** — Jackbox-style: one player creates the lobby and becomes host, others join via a shareable code. Host has lobby-only powers (kick, force-start, role-pool selection) before the game starts; once the game is underway the host has no special power and plays as a regular player.
 
-**Phase timer** — Night phase (role actions) uses a soft timer (advances once all required actions are submitted, no hard cutoff). Day phase (discussion + vote) uses a hard timer (auto-advances when time expires).
+**Phase timer** — Night phase (role actions) uses a soft timer (advances once all required actions are submitted, no hard cutoff). Day phase (discussion + vote) advances on whichever comes first: the hard timer expiring, or every living player having cast a vote (votes are one-shot and can't be changed once cast, so ending early once everyone's voted loses no discussion opportunity that a still-changeable vote would have needed). Overtime's forced vote uses the same early-exit, which is normally how it actually ends given every living player must vote.
+
+**Leaving mid-lobby vs. mid-game** — Before the game starts, leaving removes the player from the roster entirely. Once the game is in progress, leaving is a forfeit: the player is immediately marked eliminated so the game isn't stuck waiting on a vanished player's night action or vote, but this does not raise an elimination event for personal-win purposes (The Fool/The Marked don't trigger off a forfeit) — only an actual vote or night kill does.
 
 **Reconnection** — A disconnected player can rejoin the same lobby via its code and resume their role/state from persisted game state.
 

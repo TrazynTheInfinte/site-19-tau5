@@ -1,6 +1,7 @@
 import {
   arrayUnion,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -108,6 +109,21 @@ export async function setPlayerConnected(lobbyId: string, uid: string, connected
 
 export async function kickPlayer(lobbyId: string, uid: string): Promise<void> {
   await updateDoc(playerDocRef(lobbyId, uid), { connected: false })
+}
+
+/** Pre-game only: fully removes the player from the lobby roster. */
+export async function leavePreGameLobby(lobbyId: string, uid: string): Promise<void> {
+  await deleteDoc(playerDocRef(lobbyId, uid))
+}
+
+/**
+ * Mid-game: leaving is a forfeit, not a mere disconnect. Marked eliminated immediately so
+ * the game isn't stuck waiting on a vanished player's night action, and excluded from
+ * personal-win checks (The Fool/The Marked) since no elimination event is raised for it -
+ * only the host's resolver raises those, for real votes/kills.
+ */
+export async function forfeitGame(lobbyId: string, uid: string, cycle: number): Promise<void> {
+  await updateDoc(playerDocRef(lobbyId, uid), { alive: false, connected: false, eliminatedCycle: cycle })
 }
 
 export async function setRolePoolSelection(lobbyId: string, roles: RoleId[]): Promise<void> {

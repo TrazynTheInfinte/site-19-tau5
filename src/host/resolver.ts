@@ -11,8 +11,8 @@ import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
 import {
   getAllSecretRoles,
   getNightActions,
+  getVotes,
   markSaboteurUsed,
-  subscribeVotes,
   writeNightResults,
   writePublicCycleLog,
 } from '../firebase/repository/gameplayRepository'
@@ -126,12 +126,7 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
   const roles = await getAllSecretRoles(lobbyId)
   const living = players.filter((p) => p.alive)
 
-  const votes = await new Promise<VoteDoc[]>((resolve) => {
-    const unsub = subscribeVotes(lobbyId, lobby.cycle, (v) => {
-      unsub()
-      resolve(v)
-    })
-  })
+  const votes = await getVotes(lobbyId, lobby.cycle)
 
   const isOvertime = lobby.phase === 'overtime'
   const tally = isOvertime
@@ -233,7 +228,15 @@ export function useHostResolver(
 
     const check = async () => {
       if (resolvingRef.current || cancelled) return
-      if (!lobby.phaseDeadline || Date.now() < lobby.phaseDeadline) return
+      const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
+      if (!timerExpired) {
+        const living = playersRef.current.filter((p) => p.alive)
+        if (living.length === 0) return
+        const votes = await getVotes(lobbyId, lobby.cycle)
+        const votedUids = new Set(votes.map((v) => v.voterUid))
+        const allVoted = living.every((p) => votedUids.has(p.uid))
+        if (!allVoted) return
+      }
       resolvingRef.current = true
       await resolveVotePhase(lobbyId, lobby, playersRef.current)
       resolvingRef.current = false

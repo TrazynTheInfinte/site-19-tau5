@@ -7,6 +7,7 @@ import GhostTipComposer from '../components/game/GhostTipComposer'
 import GhostTipFeed from '../components/game/GhostTipFeed'
 import CycleLog from '../components/game/CycleLog'
 import EndGameView from '../components/game/EndGameView'
+import LeaveGameButton from '../components/game/LeaveGameButton'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
 
 export default function GameRoute() {
@@ -38,6 +39,7 @@ export default function GameRoute() {
       {!me?.alive && <GhostTipComposer />}
       <GhostTipFeed />
       <CycleLog />
+      {me?.alive && <LeaveGameButton />}
       {isDrBright && <HostDevPanel />}
     </div>
   )

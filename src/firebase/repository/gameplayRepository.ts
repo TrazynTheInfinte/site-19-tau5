@@ -123,6 +123,13 @@ export function subscribeVotes(lobbyId: string, cycle: number, cb: (votes: VoteD
   return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as VoteDoc)))
 }
 
+/** Host-only polling use: a one-off read instead of a live subscription. */
+export async function getVotes(lobbyId: string, cycle: number): Promise<VoteDoc[]> {
+  const q = query(col(lobbyId, 'votes'), where('cycle', '==', cycle))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => d.data() as VoteDoc)
+}
+
 // ---- publicCycleLog (host writes; everyone reads) ----
 
 export async function writePublicCycleLog(lobbyId: string, entry: PublicCycleLogDoc): Promise<void> {
