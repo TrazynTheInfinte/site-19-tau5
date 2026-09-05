@@ -53,6 +53,8 @@ Ghost anonymous tips are free-text, sent anonymously to all living players, once
 
 **Reconnection** — A disconnected player can rejoin the same lobby via its code and resume their role/state from persisted game state.
 
+**Will** — A short freeform note a living player can write and revise at any time, visible only to themself. The instant they're eliminated (by any cause — vote, night kill, or forfeit), their will locks (can no longer be edited) and becomes visible to everyone. A forfeit still reveals a will, unlike the personal-win exclusion above — revealing isn't a reward or a trigger, just what happens to whatever was written.
+
 ## Open questions
 
 None outstanding — see `docs/adr/` for decisions worth recording formally.
