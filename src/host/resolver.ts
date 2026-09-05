@@ -254,6 +254,31 @@ export function useHostResolver(
     playersRef.current = players
   }, [players])
 
+  // Briefing (cycle 0): a talk-only opening day, timed like a real day but with no voting at
+  // all - just wait out the timer, then go straight to Night 1. No vote tally, no win check
+  // (nobody can be eliminated before anyone's even acted), no Tome hand-off (nothing to hand
+  // off from before Night 1 assigns it).
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'briefing') return
+    let cancelled = false
+
+    const check = async () => {
+      if (resolvingRef.current || cancelled) return
+      const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
+      if (!timerExpired) return
+      resolvingRef.current = true
+      await guardedAdvance(lobbyId, 'briefing', 0, { phase: 'night', cycle: 1, phaseDeadline: null })
+      resolvingRef.current = false
+    }
+
+    const interval = setInterval(check, DAY_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.phaseDeadline])
+
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'night') return
     let cancelled = false

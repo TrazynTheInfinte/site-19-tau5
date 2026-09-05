@@ -10,7 +10,9 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 
 **Serpent's Hand** — A neutral faction with its own win condition, independent of Foundation and Chaos Insurgency. Analogous to third-party roles (e.g. Survivor, Executioner) in Town of Salem.
 
-**Cycle / Night-Day cycle** — One round of the game consisting of a night phase (secret role actions) followed by a day phase (discussion + vote). The game is multi-cycle (unlike One Night Ultimate Werewolf's single round), capped at a small number of cycles (3-4) to suit a 4-5 player lobby.
+**Cycle / Night-Day cycle** — One round of the game consisting of a night phase (secret role actions) followed by a day phase (discussion + vote). The game is multi-cycle (unlike One Night Ultimate Werewolf's single round), capped at a small number of cycles (3-4) to suit a 4-5 player lobby. Cycles are numbered starting at 1.
+
+**Briefing** — Cycle 0. The game starts here instead of straight into Night 1: a talk-only opening day, timed the same as a normal day, but with no voting at all — nobody has acted yet, so there's nothing to vote on. Exists purely so players get a chance to set the scene/introduce characters before anyone can act or be voted on.
 
 **Ghost** — An eliminated player. Ghosts do not spectate passively: once per remaining cycle they can send one anonymous tip (a short message/clue) to living players. A ghost gains no special omniscience about *other* players' roles beyond what's now public (see role reveal below) — they know only what they knew while alive, plus whatever they can infer.
 

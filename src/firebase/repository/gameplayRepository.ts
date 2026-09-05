@@ -154,6 +154,19 @@ export function subscribeMyNightResult(
   })
 }
 
+/** Every result this player has ever received, across all cycles - for the notepad's
+ * auto-populated ability log. */
+export function subscribeMyNightResults(
+  lobbyId: string,
+  uid: string,
+  cb: (results: NightResultDoc[]) => void,
+): Unsubscribe {
+  const q = query(col(lobbyId, 'nightResults'), where('recipientUid', '==', uid))
+  return onSnapshot(q, (snap) =>
+    cb(snap.docs.map((d) => d.data() as NightResultDoc).sort((a, b) => a.cycle - b.cycle)),
+  )
+}
+
 // ---- votes (public read; each player writes only their own) ----
 
 export async function submitVote(lobbyId: string, vote: Omit<VoteDoc, 'submittedAt'>): Promise<void> {

@@ -19,6 +19,7 @@ interface PhasePreset {
 
 const PRESETS: Record<GamePhase, PhasePreset> = {
   lobby: { baseFreq: 110, detune: 6, filterCutoff: 900, gain: 0.1, noiseGain: 0.008, lfoRate: 0.08, lfoDepth: 0.15 },
+  briefing: { baseFreq: 118, detune: 5, filterCutoff: 1000, gain: 0.08, noiseGain: 0.005, lfoRate: 0.07, lfoDepth: 0.12 },
   night: { baseFreq: 82, detune: 16, filterCutoff: 380, gain: 0.14, noiseGain: 0.05, lfoRate: 0.05, lfoDepth: 0.3 },
   day: { baseFreq: 130, detune: 4, filterCutoff: 1400, gain: 0.07, noiseGain: 0, lfoRate: 0.12, lfoDepth: 0.1 },
   overtime: { baseFreq: 98, detune: 22, filterCutoff: 520, gain: 0.16, noiseGain: 0.07, lfoRate: 0.45, lfoDepth: 0.4 },

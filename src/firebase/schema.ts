@@ -1,7 +1,9 @@
 import type { RoleId, Faction, NightActionType } from '../game/types'
 
 export type LobbyStatus = 'lobby' | 'in_progress' | 'ended'
-export type GamePhase = 'lobby' | 'night' | 'day' | 'overtime' | 'ended'
+// 'briefing' is cycle 0: an opening talk-only day before Night 1 - timed like a normal day,
+// but with no voting at all (nobody's died yet, so nothing to vote on anyway).
+export type GamePhase = 'lobby' | 'briefing' | 'night' | 'day' | 'overtime' | 'ended'
 
 export interface LobbyDoc {
   code: string

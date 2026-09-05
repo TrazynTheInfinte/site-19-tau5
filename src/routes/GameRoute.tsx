@@ -1,6 +1,7 @@
 import { useAuth } from '../context/AuthContext'
 import { useLobby } from '../context/LobbyContext'
 import SecretRoleCard from '../components/game/SecretRoleCard'
+import BriefingView from '../components/game/BriefingView'
 import NightPhaseView from '../components/game/NightPhaseView'
 import DayPhaseView from '../components/game/DayPhaseView'
 import GhostTipComposer from '../components/game/GhostTipComposer'
@@ -11,6 +12,7 @@ import LeaveGameButton from '../components/game/LeaveGameButton'
 import PlayerList from '../components/game/PlayerList'
 import WillEditor from '../components/game/WillEditor'
 import Notepad from '../components/game/Notepad'
+import AbilityLog from '../components/game/AbilityLog'
 import PuppeteerControl from '../components/game/PuppeteerControl'
 import TomeControl from '../components/game/TomeControl'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
@@ -41,13 +43,14 @@ export default function GameRoute() {
       <div className={`phase-banner phase-banner--${lobby.phase}`}>
         <h1>{lobby.phase === 'overtime' ? 'Overtime' : lobby.phase}</h1>
         <span className="phase-banner__label">
-          Cycle {lobby.cycle} / {lobby.cycleCap}
+          {lobby.phase === 'briefing' ? 'Before Night 1' : `Cycle ${lobby.cycle} / ${lobby.cycleCap}`}
         </span>
       </div>
 
       <div className="game-shell__body">
         <div className="game-shell__main">
           <SecretRoleCard />
+          {lobby.phase === 'briefing' && <BriefingView />}
           {lobby.phase === 'night' && <NightPhaseView />}
           {(lobby.phase === 'day' || lobby.phase === 'overtime') && (
             <>
@@ -69,8 +72,9 @@ export default function GameRoute() {
               <WillEditor />
             </details>
           )}
-          <details className="card collapsible">
+          <details className="card collapsible" open>
             <summary>Notepad</summary>
+            <AbilityLog />
             <Notepad />
           </details>
           <details className="card collapsible">
