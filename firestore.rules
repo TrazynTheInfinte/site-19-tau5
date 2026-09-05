@@ -33,8 +33,14 @@ service cloud.firestore {
       }
 
       match /secretRoles/{uid} {
+        // Also readable teammate-to-teammate within Chaos Insurgency: "the CI team chooses a
+        // kill together" (CONTEXT.md) already implied they know each other, and Anomaly
+        // specifically needs to know who not to target. A query naturally excludes denied
+        // docs rather than failing outright, since this is a per-document content check.
         allow read: if request.auth.uid == uid ||
-          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
+          (get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.faction == 'ci' &&
+           resource.data.faction == 'ci');
         allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 
@@ -82,6 +88,13 @@ service cloud.firestore {
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == false;
         // Host-only: clearing prior-game data on restart.
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /puppeteerOverrides/{uid} {
+        // Doc id == the Puppeteer's own uid (one override total per game). Host-only read -
+        // the whole point is the target never finds out, so nobody but the resolver sees this.
+        allow create: if request.auth.uid == uid;
+        allow read, delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
     }
   }

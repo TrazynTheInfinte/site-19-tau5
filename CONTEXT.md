@@ -26,22 +26,32 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 
 **Day-phase tie vote** — If the elimination vote ties between two or more players, no one is eliminated that cycle (applies to normal cycles; the overtime round's forced vote also results in no elimination on a tie).
 
-## Role list (MVP)
+## Role list
 
 **Foundation:**
 - *Agent* — no special ability; rank-and-file staffer, just a vote.
 - *Researcher* — each night, investigate one player and learn their faction.
 - *Medical Officer* — each night, protect one player from elimination.
+- *Tracker* — each night, learns only whether a target submitted any night action at all — not what, not their faction.
+- *Warden* — each night, detains a target: blocks their action and protects them from elimination, simultaneously. Once per game, may instead Execute the detained target — an unblockable kill (scaled down from Town of Salem's Jailer, which also gets a free kill on top of the jail, for this game's smaller player counts).
 
 **Chaos Insurgency:**
 - *Infiltrator* — each night, the CI team chooses a player to eliminate.
 - *Saboteur* — once per game, blocks another player's night ability instead of the normal CI kill.
+- *Framer* — each night, makes a target appear as Chaos Insurgency to any Researcher investigation that same night.
+- *Anomaly* — once per game (not the first night), strikes a target with an unblockable kill; cannot target another Chaos Insurgency member. Adapted from Town of Salem's Conjurer, which does this during the day and stays anonymous — here it's a night action instead (reuses the existing resolution machinery rather than needing a whole separate day-action pathway), and anonymity is already free since nobody learns who killed whom anyway.
 
 **Serpent's Hand (neutral, special-condition roles):**
 - *The Fool* (formerly "Jester") — wins if voted out by the Foundation during a day-phase vote.
 - *The Marked* (formerly "Executioner") — assigned a secret Foundation target at game start; wins if that target is voted out/terminated.
+- *The Puppeteer* — once per game, secretly forces another living player's vote to count for a target of the Puppeteer's choosing; the victim's own vote is never altered or shown differently to them, so they never find out. Wins by surviving to the end of the game.
+- *The Cartographer* — once per game, silently swaps the night-action targets of two other players (neither is told). Wins by surviving to the end of the game.
 
 Ghost anonymous tips are free-text, sent anonymously to all living players, once per remaining cycle — no structural constraints on content for MVP.
+
+**Chaos Insurgency mutual visibility** — CI faction members know each other's identity and role from the start of the game (this was already implied by "the CI team chooses a kill together," just not previously surfaced in the UI). Needed concretely so the Anomaly knows who not to target.
+
+**Survive-to-end personal win** — The Puppeteer and The Cartographer both win simply by being alive when the game ends, whatever the outcome (a faction win or a draw) — checked once, at the moment the game actually ends, rather than triggered by a specific elimination event like The Fool/The Marked.
 
 **Role assignment** — Not a fixed per-player-count table. Constraints only: Foundation is always the majority faction, at least one Chaos Insurgency role is always in the match, at least one Serpent's Hand role is always in the match. Beyond those constraints, exact role counts/mix are randomized per game from the role pool.
 

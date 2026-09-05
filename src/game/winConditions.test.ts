@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkFactionWin, checkPersonalWins } from './winConditions'
+import { checkFactionWin, checkPersonalWins, checkSurviveToEndWins } from './winConditions'
 import type { PlayerState, RoleAssignments } from './types'
 
 function makePlayers(uids: string[], deadUids: string[] = []): PlayerState[] {
@@ -7,11 +7,37 @@ function makePlayers(uids: string[], deadUids: string[] = []): PlayerState[] {
 }
 
 const roles: RoleAssignments = new Map([
-  ['f1', { uid: 'f1', role: 'agent', faction: 'foundation', markedTargetUid: null, saboteurUsed: false }],
-  ['f2', { uid: 'f2', role: 'researcher', faction: 'foundation', markedTargetUid: null, saboteurUsed: false }],
-  ['ci1', { uid: 'ci1', role: 'infiltrator', faction: 'ci', markedTargetUid: null, saboteurUsed: false }],
-  ['sh1', { uid: 'sh1', role: 'theFool', faction: 'serpentsHand', markedTargetUid: null, saboteurUsed: false }],
-  ['sh2', { uid: 'sh2', role: 'theMarked', faction: 'serpentsHand', markedTargetUid: 'f1', saboteurUsed: false }],
+  ['f1', { uid: 'f1', role: 'agent', faction: 'foundation', markedTargetUid: null, saboteurUsed: false, specialUsed: false }],
+  [
+    'f2',
+    { uid: 'f2', role: 'researcher', faction: 'foundation', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
+  ],
+  [
+    'ci1',
+    { uid: 'ci1', role: 'infiltrator', faction: 'ci', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
+  ],
+  [
+    'sh1',
+    {
+      uid: 'sh1',
+      role: 'theFool',
+      faction: 'serpentsHand',
+      markedTargetUid: null,
+      saboteurUsed: false,
+      specialUsed: false,
+    },
+  ],
+  [
+    'sh2',
+    {
+      uid: 'sh2',
+      role: 'theMarked',
+      faction: 'serpentsHand',
+      markedTargetUid: 'f1',
+      saboteurUsed: false,
+      specialUsed: false,
+    },
+  ],
 ])
 
 describe('checkFactionWin', () => {
@@ -59,5 +85,46 @@ describe('checkPersonalWins', () => {
 
   it('no personal win when the eliminated player matches nobody\'s condition', () => {
     expect(checkPersonalWins({ uid: 'f2', cause: 'vote', cycle: 1 }, roles)).toEqual([])
+  })
+})
+
+describe('checkSurviveToEndWins', () => {
+  const survivorRoles: RoleAssignments = new Map([
+    ...roles,
+    [
+      'sh3',
+      {
+        uid: 'sh3',
+        role: 'puppeteer',
+        faction: 'serpentsHand',
+        markedTargetUid: null,
+        saboteurUsed: false,
+        specialUsed: false,
+      },
+    ],
+    [
+      'sh4',
+      {
+        uid: 'sh4',
+        role: 'cartographer',
+        faction: 'serpentsHand',
+        markedTargetUid: null,
+        saboteurUsed: false,
+        specialUsed: false,
+      },
+    ],
+  ])
+
+  it('Puppeteer and Cartographer win if still alive when the game ends', () => {
+    const players = makePlayers(['f1', 'sh3', 'sh4'])
+    expect(checkSurviveToEndWins(players, survivorRoles)).toEqual([
+      { uid: 'sh3', role: 'puppeteer' },
+      { uid: 'sh4', role: 'cartographer' },
+    ])
+  })
+
+  it('does not win if eliminated before the game ends', () => {
+    const players = makePlayers(['f1', 'sh3', 'sh4'], ['sh3'])
+    expect(checkSurviveToEndWins(players, survivorRoles)).toEqual([{ uid: 'sh4', role: 'cartographer' }])
   })
 })

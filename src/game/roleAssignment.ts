@@ -82,6 +82,7 @@ export function assignRoles(playerUids: string[], enabledRoles: RoleId[], rng: R
       faction: ROLE_DEFINITIONS[role].faction,
       markedTargetUid: null,
       saboteurUsed: false,
+      specialUsed: false,
     })
   })
 

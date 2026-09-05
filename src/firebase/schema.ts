@@ -33,6 +33,7 @@ export interface SecretRoleDoc {
   faction: Faction
   markedTargetUid: string | null
   saboteurUsed: boolean
+  specialUsed: boolean
 }
 
 export interface NightActionDoc {
@@ -40,13 +41,26 @@ export interface NightActionDoc {
   actorUid: string
   actionType: NightActionType
   targetUid: string
+  secondaryTargetUid?: string
   submittedAt: number
 }
 
 export interface NightResultDoc {
   cycle: number
   recipientUid: string
-  payload: { type: 'investigate'; targetUid: string; targetFaction: Faction }
+  payload:
+    | { type: 'investigate'; targetUid: string; targetFaction: Faction }
+    | { type: 'track'; targetUid: string; acted: boolean }
+}
+
+/** A Puppeteer's once-per-game secret vote override: `targetVoterUid`'s vote is counted as
+ * `forcedTarget` in the host's tally, without altering `targetVoterUid`'s own visible vote doc. */
+export interface PuppeteerOverrideDoc {
+  cycle: number
+  puppeteerUid: string
+  targetVoterUid: string
+  forcedTarget: string
+  createdAt: number
 }
 
 export interface VoteDoc {

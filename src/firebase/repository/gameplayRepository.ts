@@ -17,6 +17,7 @@ import type {
   NightActionDoc,
   NightResultDoc,
   PublicCycleLogDoc,
+  PuppeteerOverrideDoc,
   SecretRoleDoc,
   VoteDoc,
   WillDoc,
@@ -36,6 +37,7 @@ const GAMEPLAY_COLLECTIONS = [
   'publicCycleLog',
   'ghostTips',
   'wills',
+  'puppeteerOverrides',
 ] as const
 
 /** Host-only: wipes all of a completed game's per-cycle/per-role data so a restart doesn't
@@ -61,6 +63,7 @@ export async function writeSecretRoles(lobbyId: string, assignments: RoleAssignm
       faction: assignment.faction,
       markedTargetUid: assignment.markedTargetUid,
       saboteurUsed: assignment.saboteurUsed,
+      specialUsed: assignment.specialUsed,
     }
     batch.set(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), roleDoc)
   }
@@ -91,6 +94,11 @@ export async function getAllSecretRoles(lobbyId: string): Promise<RoleAssignment
 
 export async function markSaboteurUsed(lobbyId: string, uid: string): Promise<void> {
   await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { saboteurUsed: true })
+}
+
+/** Marks the generic once-per-game ability used (Warden's Execute, Anomaly, Puppeteer, Cartographer). */
+export async function markSpecialUsed(lobbyId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { specialUsed: true })
 }
 
 // ---- nightActions (host-only read; each player writes only their own) ----
@@ -192,4 +200,26 @@ export function subscribeWill(lobbyId: string, uid: string, cb: (will: WillDoc |
     (snap) => cb(snap.exists() ? (snap.data() as WillDoc) : null),
     () => cb(null), // permission-denied while the author is still alive - expected, not an error
   )
+}
+
+// ---- puppeteerOverrides (the puppeteer writes their own once; host-only read) ----
+// Deliberately never overwrites the target's own vote doc, so the victim's own UI (which
+// reads their own vote, not this collection) never shows anything different from what they
+// actually clicked - the host's tally is the only place the override takes effect.
+
+export async function setPuppeteerOverride(
+  lobbyId: string,
+  override: Omit<PuppeteerOverrideDoc, 'createdAt'>,
+): Promise<void> {
+  await setDoc(doc(db, 'lobbies', lobbyId, 'puppeteerOverrides', override.puppeteerUid), {
+    ...override,
+    createdAt: Date.now(),
+  } satisfies PuppeteerOverrideDoc)
+}
+
+/** Host-only. */
+export async function getPuppeteerOverride(lobbyId: string, cycle: number): Promise<PuppeteerOverrideDoc | null> {
+  const q = query(col(lobbyId, 'puppeteerOverrides'), where('cycle', '==', cycle))
+  const snap = await getDocs(q)
+  return snap.empty ? null : (snap.docs[0].data() as PuppeteerOverrideDoc)
 }

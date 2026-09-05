@@ -4,21 +4,25 @@ import { db } from '../firebase/config'
 import { resolveNight } from '../game/nightResolution'
 import { tallyVotes } from '../game/voting'
 import { isOvertimeReached, resolveOvertimeVote } from '../game/overtime'
-import { checkFactionWin, checkPersonalWins } from '../game/winConditions'
+import { checkFactionWin, checkPersonalWins, checkSurviveToEndWins } from '../game/winConditions'
 import { nightAbilityFor } from '../game/nightActionAbilities'
 import { DAY_PHASE_DURATION_MS } from '../game/constants'
 import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
 import {
   getAllSecretRoles,
   getNightActions,
+  getPuppeteerOverride,
   getVotes,
   markSaboteurUsed,
+  markSpecialUsed,
   writeNightResults,
   writePublicCycleLog,
 } from '../firebase/repository/gameplayRepository'
-import type { LobbyDoc, VoteDoc } from '../firebase/schema'
+import type { LobbyDoc } from '../firebase/schema'
 import type { PlayerWithId } from '../context/LobbyContext'
 import type { EliminationEvent, PlayerState, RoleAssignments } from '../game/types'
+
+const SPECIAL_ONCE_ACTION_TYPES = ['execute', 'trueKill', 'cartographerSwap'] as const
 
 const NIGHT_POLL_MS = 3_000
 const DAY_POLL_MS = 2_000
@@ -61,6 +65,21 @@ async function guardedAdvance(lobbyId: string, expectedPhase: string, expectedCy
   })
 }
 
+/** Shared by every game-ending path (night kill wins it, day vote wins it, overtime draws):
+ * records any Puppeteer/Cartographer survive-to-end wins alongside the main outcome. */
+async function endGame(
+  lobbyId: string,
+  expectedPhase: string,
+  expectedCycle: number,
+  winner: 'foundation' | 'ci' | 'draw',
+  finalPlayers: PlayerState[],
+  roles: RoleAssignments,
+) {
+  const surviveWins = checkSurviveToEndWins(finalPlayers, roles)
+  if (surviveWins.length > 0) await addPersonalWinners(lobbyId, surviveWins.map((w) => w.uid))
+  await guardedAdvance(lobbyId, expectedPhase, expectedCycle, { phase: 'ended', status: 'ended', winner })
+}
+
 /** Exported for the Dr. Bright dev panel's "force resolve night now" testing shortcut. */
 export async function resolveNightCycle(lobbyId: string, cycle: number, players: PlayerWithId[]) {
   const roles = await getAllSecretRoles(lobbyId)
@@ -77,6 +96,12 @@ export async function resolveNightCycle(lobbyId: string, cycle: number, players:
 
   const usedSaboteur = actions.find((a) => a.actionType === 'block')
   if (usedSaboteur) await markSaboteurUsed(lobbyId, usedSaboteur.actorUid)
+
+  for (const action of actions) {
+    if ((SPECIAL_ONCE_ACTION_TYPES as readonly string[]).includes(action.actionType)) {
+      await markSpecialUsed(lobbyId, action.actorUid)
+    }
+  }
 
   if (result.investigationResults.length > 0) {
     await writeNightResults(
@@ -96,10 +121,11 @@ export async function resolveNightCycle(lobbyId: string, cycle: number, players:
     causeOfDeath: result.eliminatedUid ? 'kill' : null,
   })
 
-  const winner = checkFactionWin(toPlayerStates(players, result.eliminatedUid), roles)
+  const finalStates = toPlayerStates(players, result.eliminatedUid)
+  const winner = checkFactionWin(finalStates, roles)
 
   if (winner) {
-    await guardedAdvance(lobbyId, 'night', cycle, { phase: 'ended', status: 'ended', winner })
+    await endGame(lobbyId, 'night', cycle, winner, finalStates, roles)
     return
   }
 
@@ -109,12 +135,9 @@ export async function resolveNightCycle(lobbyId: string, cycle: number, players:
   })
 }
 
-function safeResolveOvertime(votes: VoteDoc[], livingUids: string[]) {
+function safeResolveOvertime(votes: { voterUid: string; targetUid: string | null }[], livingUids: string[]) {
   try {
-    return resolveOvertimeVote(
-      votes.map((v) => ({ voterUid: v.voterUid, targetUid: v.targetUid })),
-      livingUids,
-    )
+    return resolveOvertimeVote(votes, livingUids)
   } catch {
     // Hard timer expired before every living player voted; treat as a tie (no elimination) so
     // the game can still reach a draw instead of the resolver getting stuck.
@@ -127,11 +150,19 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
   const living = players.filter((p) => p.alive)
 
   const votes = await getVotes(lobbyId, lobby.cycle)
+  const override = await getPuppeteerOverride(lobbyId, lobby.cycle)
+  // Only the host can flip specialUsed (secretRoles writes are host-only), so this is where
+  // "the Puppeteer has used their override" actually gets recorded, not at submission time.
+  if (override) await markSpecialUsed(lobbyId, override.puppeteerUid)
+  // Applied only to the in-memory tally, never written back to the target's own vote doc -
+  // that's what keeps the override invisible to them (their UI reads their own doc, not this).
+  const effectiveVotes = votes.map((v) => ({
+    voterUid: v.voterUid,
+    targetUid: override && v.voterUid === override.targetVoterUid ? override.forcedTarget : v.targetUid,
+  }))
 
   const isOvertime = lobby.phase === 'overtime'
-  const tally = isOvertime
-    ? safeResolveOvertime(votes, living.map((p) => p.uid))
-    : tallyVotes(votes.map((v) => ({ voterUid: v.voterUid, targetUid: v.targetUid })))
+  const tally = isOvertime ? safeResolveOvertime(effectiveVotes, living.map((p) => p.uid)) : tallyVotes(effectiveVotes)
 
   if (tally.eliminatedUid) {
     await eliminatePlayer(lobbyId, tally.eliminatedUid, lobby.cycle)
@@ -148,15 +179,16 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
     causeOfDeath: tally.eliminatedUid ? 'vote' : null,
   })
 
-  const winner = checkFactionWin(toPlayerStates(players, tally.eliminatedUid), roles)
+  const finalStates = toPlayerStates(players, tally.eliminatedUid)
+  const winner = checkFactionWin(finalStates, roles)
 
   if (winner) {
-    await guardedAdvance(lobbyId, lobby.phase, lobby.cycle, { phase: 'ended', status: 'ended', winner })
+    await endGame(lobbyId, lobby.phase, lobby.cycle, winner, finalStates, roles)
     return
   }
 
   if (isOvertime) {
-    await guardedAdvance(lobbyId, 'overtime', lobby.cycle, { phase: 'ended', status: 'ended', winner: 'draw' })
+    await endGame(lobbyId, 'overtime', lobby.cycle, 'draw', finalStates, roles)
     return
   }
 

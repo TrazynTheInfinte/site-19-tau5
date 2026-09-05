@@ -11,6 +11,7 @@ import LeaveGameButton from '../components/game/LeaveGameButton'
 import PlayerList from '../components/game/PlayerList'
 import WillEditor from '../components/game/WillEditor'
 import Notepad from '../components/game/Notepad'
+import PuppeteerControl from '../components/game/PuppeteerControl'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
 
 export default function GameRoute() {
@@ -38,7 +39,12 @@ export default function GameRoute() {
       </h1>
       <SecretRoleCard />
       {lobby.phase === 'night' && <NightPhaseView />}
-      {(lobby.phase === 'day' || lobby.phase === 'overtime') && <DayPhaseView />}
+      {(lobby.phase === 'day' || lobby.phase === 'overtime') && (
+        <>
+          <DayPhaseView />
+          <PuppeteerControl />
+        </>
+      )}
       {!me?.alive && <GhostTipComposer />}
       <GhostTipFeed />
       <PlayerList />

@@ -1,4 +1,4 @@
-import type { EliminationEvent, FactionWinner, PersonalWin, PlayerState, RoleAssignments } from './types'
+import { SURVIVE_TO_END_ROLES, type EliminationEvent, type FactionWinner, type PersonalWin, type PlayerState, type RoleAssignments } from './types'
 
 /**
  * Per ADR-0001: Foundation wins when all CI are eliminated. CI wins when living CI count
@@ -34,5 +34,22 @@ export function checkPersonalWins(event: EliminationEvent, roles: RoleAssignment
     }
   }
 
+  return wins
+}
+
+/**
+ * The Puppeteer and The Cartographer both win by surviving to the end of the game, by
+ * whatever means it ends (faction win or draw) - not triggered by an elimination event like
+ * Fool/Marked, so this is checked once, at the moment the game actually ends.
+ */
+export function checkSurviveToEndWins(players: PlayerState[], roles: RoleAssignments): PersonalWin[] {
+  const wins: PersonalWin[] = []
+  for (const player of players) {
+    if (!player.alive) continue
+    const assignment = roles.get(player.uid)
+    if (assignment && SURVIVE_TO_END_ROLES.includes(assignment.role)) {
+      wins.push({ uid: player.uid, role: assignment.role })
+    }
+  }
   return wins
 }
