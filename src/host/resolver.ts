@@ -130,15 +130,20 @@ export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, player
     }
   }
 
-  if (result.investigationResults.length > 0) {
-    await writeNightResults(
-      lobbyId,
-      result.investigationResults.map((r) => ({
-        cycle,
-        recipientUid: r.actorUid,
-        payload: { type: 'investigate' as const, targetUid: r.targetUid, targetFaction: r.targetFaction },
-      })),
-    )
+  const resultDocs = [
+    ...result.investigationResults.map((r) => ({
+      cycle,
+      recipientUid: r.actorUid,
+      payload: { type: 'investigate' as const, targetUid: r.targetUid, targetFaction: r.targetFaction },
+    })),
+    ...result.trackResults.map((r) => ({
+      cycle,
+      recipientUid: r.actorUid,
+      payload: { type: 'track' as const, targetUid: r.targetUid, acted: r.acted },
+    })),
+  ]
+  if (resultDocs.length > 0) {
+    await writeNightResults(lobbyId, resultDocs)
   }
 
   await writePublicCycleLog(lobbyId, {
