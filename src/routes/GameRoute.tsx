@@ -8,6 +8,9 @@ import GhostTipFeed from '../components/game/GhostTipFeed'
 import CycleLog from '../components/game/CycleLog'
 import EndGameView from '../components/game/EndGameView'
 import LeaveGameButton from '../components/game/LeaveGameButton'
+import PlayerList from '../components/game/PlayerList'
+import WillEditor from '../components/game/WillEditor'
+import Notepad from '../components/game/Notepad'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
 
 export default function GameRoute() {
@@ -38,8 +41,11 @@ export default function GameRoute() {
       {(lobby.phase === 'day' || lobby.phase === 'overtime') && <DayPhaseView />}
       {!me?.alive && <GhostTipComposer />}
       <GhostTipFeed />
+      <PlayerList />
+      {me?.alive && <WillEditor />}
+      <Notepad />
       <CycleLog />
-      {me?.alive && <LeaveGameButton />}
+      <LeaveGameButton />
       {isDrBright && <HostDevPanel />}
     </div>
   )

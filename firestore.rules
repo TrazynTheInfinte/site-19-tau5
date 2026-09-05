@@ -64,6 +64,17 @@ service cloud.firestore {
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == false;
         allow read: if request.auth != null;
       }
+
+      match /wills/{uid} {
+        // Locked at the moment of death: writable only by the author, and only while alive -
+        // this is what makes a "revealed will" actually a frozen last-words snapshot rather
+        // than something editable after everyone's already seen it.
+        allow write: if request.auth.uid == uid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == true;
+        allow read: if request.auth.uid == uid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == false;
+      }
     }
   }
 }

@@ -19,6 +19,7 @@ import type {
   PublicCycleLogDoc,
   SecretRoleDoc,
   VoteDoc,
+  WillDoc,
 } from '../schema'
 import { cycleDocId } from '../schema'
 import type { RoleAssignments } from '../../game/types'
@@ -152,5 +153,20 @@ export async function sendGhostTip(lobbyId: string, tip: Omit<GhostTipDoc, 'sent
 export function subscribeGhostTips(lobbyId: string, cb: (tips: GhostTipDoc[]) => void): Unsubscribe {
   return onSnapshot(col(lobbyId, 'ghostTips'), (snap) =>
     cb(snap.docs.map((d) => d.data() as GhostTipDoc).sort((a, b) => a.sentAt - b.sentAt)),
+  )
+}
+
+// ---- wills (writable by the author only while alive; readable by self, host, or anyone once
+// the author is eliminated - enforced in firestore.rules, not here) ----
+
+export async function setMyWill(lobbyId: string, uid: string, text: string): Promise<void> {
+  await setDoc(doc(db, 'lobbies', lobbyId, 'wills', uid), { text, updatedAt: Date.now() } satisfies WillDoc)
+}
+
+export function subscribeWill(lobbyId: string, uid: string, cb: (will: WillDoc | null) => void): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'lobbies', lobbyId, 'wills', uid),
+    (snap) => cb(snap.exists() ? (snap.data() as WillDoc) : null),
+    () => cb(null), // permission-denied while the author is still alive - expected, not an error
   )
 }

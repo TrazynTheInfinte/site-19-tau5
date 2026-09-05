@@ -70,6 +70,12 @@ export interface GhostTipDoc {
   sentAt: number
 }
 
+/** A player's last will - editable only while alive, revealed to everyone once eliminated. */
+export interface WillDoc {
+  text: string
+  updatedAt: number
+}
+
 /** Composite doc id helper for per-cycle-per-actor collections (nightActions, nightResults, votes). */
 export function cycleDocId(cycle: number, uid: string): string {
   return `${cycle}_${uid}`
