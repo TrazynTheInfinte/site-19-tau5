@@ -35,9 +35,10 @@ export default function GameRoute() {
 
   return (
     <div>
-      <h1>
-        Cycle {lobby.cycle} — {lobby.phase === 'overtime' ? 'Overtime' : lobby.phase}
-      </h1>
+      <div className={`phase-banner phase-banner--${lobby.phase}`}>
+        <h1>{lobby.phase === 'overtime' ? 'Overtime' : lobby.phase}</h1>
+        <span className="phase-banner__label">Cycle {lobby.cycle} / {lobby.cycleCap}</span>
+      </div>
       <SecretRoleCard />
       {lobby.phase === 'night' && <NightPhaseView />}
       {(lobby.phase === 'day' || lobby.phase === 'overtime') && (

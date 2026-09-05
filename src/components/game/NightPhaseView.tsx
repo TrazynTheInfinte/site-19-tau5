@@ -132,7 +132,7 @@ export default function NightPhaseView() {
         >
           Submit
         </button>
-        {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
       </div>
     )
   }
@@ -173,7 +173,7 @@ export default function NightPhaseView() {
             </button>
           </>
         )}
-        {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
       </div>
     )
   }
@@ -197,7 +197,7 @@ export default function NightPhaseView() {
           Swap
         </button>
         <p style={{ fontSize: '0.85em', opacity: 0.7 }}>You may also skip this and act again later.</p>
-        {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
       </div>
     )
   }
@@ -232,7 +232,7 @@ export default function NightPhaseView() {
       >
         Submit
       </button>
-      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+      {error && <p className="error-text">{error}</p>}
     </div>
   )
 }

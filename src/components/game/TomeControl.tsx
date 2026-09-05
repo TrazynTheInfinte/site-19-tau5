@@ -72,7 +72,7 @@ export default function TomeControl() {
       <button disabled={!target} onClick={handleRequest} style={{ marginLeft: '0.5rem' }}>
         Hand off
       </button>
-      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+      {error && <p className="error-text">{error}</p>}
     </div>
   )
 }

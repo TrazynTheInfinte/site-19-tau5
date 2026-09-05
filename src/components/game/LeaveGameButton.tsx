@@ -36,7 +36,7 @@ export default function LeaveGameButton() {
   }
 
   return (
-    <button onClick={handleLeave} disabled={leaving} style={{ borderColor: '#ff6b6b' }}>
+    <button className="danger" onClick={handleLeave} disabled={leaving}>
       {leaving ? 'Leaving...' : alive ? 'Leave game (forfeit)' : 'Leave game'}
     </button>
   )

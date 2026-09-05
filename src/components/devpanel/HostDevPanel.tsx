@@ -27,7 +27,7 @@ export default function HostDevPanel() {
   }
 
   return (
-    <div className="card" style={{ borderColor: '#d8b45c' }}>
+    <div className="card" style={{ borderColor: 'var(--accent)' }}>
       <h3>[Dr. Bright dev panel]</h3>
       <button onClick={revealAllRoles}>Reveal all roles</button>{' '}
       <button onClick={forceResolveNight}>Force resolve night now</button>{' '}

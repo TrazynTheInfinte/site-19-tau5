@@ -21,7 +21,7 @@ function RevealedWill({ lobbyId, uid }: { lobbyId: string; uid: string }) {
 
   if (!text) return null
   return (
-    <div style={{ marginTop: '0.25rem', paddingLeft: '1rem', fontStyle: 'italic', opacity: 0.85 }}>
+    <div style={{ width: '100%', paddingLeft: '1.1rem', fontStyle: 'italic', opacity: 0.85, fontSize: '0.88rem' }}>
       Will: "{text}"
     </div>
   )
@@ -83,21 +83,31 @@ export default function PlayerList() {
 
   return (
     <div className="card">
-      <h3>Players</h3>
-      <ul style={{ listStyle: 'none', padding: 0 }}>
+      <h3>Personnel</h3>
+      <ul className="plain">
         {sorted.map((p) => (
-          <li key={p.uid} style={{ marginBottom: '0.5rem', opacity: p.alive ? 1 : 0.6 }}>
-            <span>{p.alive ? '🟢' : '💀'}</span> {p.displayName}
-            {!p.connected && ' (disconnected)'}
+          <li
+            key={p.uid}
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.4rem 0',
+              borderBottom: '1px solid var(--border-default)',
+              opacity: p.alive ? 1 : 0.7,
+            }}
+          >
+            <span className={`status-dot ${!p.alive ? 'status-dot--dead' : ''}`} />
+            <span>{p.displayName}</span>
+            {!p.connected && <span className="faint">disconnected</span>}
             {!p.alive && <RevealedRole lobbyId={lobby.code} uid={p.uid} />}
-            {p.uid !== uid && (
-              <SuspicionSelect lobbyCode={lobby.code} viewerUid={uid} targetUid={p.uid} />
-            )}
+            {p.uid !== uid && <SuspicionSelect lobbyCode={lobby.code} viewerUid={uid} targetUid={p.uid} />}
             {!p.alive && <RevealedWill lobbyId={lobby.code} uid={p.uid} />}
           </li>
         ))}
       </ul>
-      <p style={{ fontSize: '0.85em', opacity: 0.7 }}>
+      <p className="faint" style={{ marginTop: 'var(--space-2)' }}>
         Suspicions are your own private notes — only you can see them.
       </p>
     </div>

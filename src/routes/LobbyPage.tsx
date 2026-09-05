@@ -47,7 +47,7 @@ function JoinLobbyPrompt({ code, uid }: { code: string; uid: string }) {
       <button disabled={!displayName.trim() || busy} onClick={handleJoin} style={{ marginTop: '0.5rem' }}>
         {busy ? 'Joining...' : 'Join'}
       </button>
-      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+      {error && <p className="error-text">{error}</p>}
     </div>
   )
 }
@@ -77,8 +77,8 @@ function LobbyPageInner({ code }: { code: string }) {
     }
   }, [code, uid, players])
 
-  if (authError) return <p style={{ color: '#ff6b6b' }}>Sign-in failed: {authError}</p>
-  if (lobbyError) return <p style={{ color: '#ff6b6b' }}>Couldn't load this lobby: {lobbyError}</p>
+  if (authError) return <p className="error-text">Sign-in failed: {authError}</p>
+  if (lobbyError) return <p className="error-text">Couldn't load this lobby: {lobbyError}</p>
   if (loading) return <p>Loading lobby...</p>
   if (!lobby) return <p>Lobby not found.</p>
   if (!uid) return <p>Signing in...</p>

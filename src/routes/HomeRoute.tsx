@@ -46,55 +46,67 @@ export default function HomeRoute() {
     }
   }
 
-  if (loading) return <p>Signing in...</p>
+  if (loading) return <p className="muted">Establishing secure connection...</p>
 
   return (
-    <div>
-      <h1>Site-19: Tau-5 Protocol</h1>
-      {authError && (
-        <div className="card" style={{ borderColor: '#ff6b6b' }}>
-          <strong>Sign-in failed:</strong> {authError}
-          <p>
-            Most likely cause: Anonymous sign-in isn't enabled in the Firebase console yet (Authentication → Sign-in
-            method → Anonymous), or the values in <code>.env.local</code> don't match your Firebase project.
-          </p>
-        </div>
-      )}
-      <div className="card">
-        <label>
-          Display name
-          <br />
+    <div className="grid-2">
+      <div>
+        <h1>Containment Protocol</h1>
+        <p className="muted">
+          A minority of personnel present at this Site have been compromised. Foundation staff must identify and
+          remove the threat before Chaos Insurgency operatives seize control — while the Serpent's Hand pursues its
+          own agenda in the shadows.
+        </p>
+        <p className="faint">4–8 players. One device each. Discussion happens out loud, over call, or in person.</p>
+
+        {authError && (
+          <div className="card" style={{ borderColor: 'var(--danger-dim)' }}>
+            <h3 style={{ color: 'var(--danger)' }}>Sign-in failed</h3>
+            <p className="error-text">{authError}</p>
+            <p className="faint">
+              Most likely cause: Anonymous sign-in isn't enabled in the Firebase console yet (Authentication →
+              Sign-in method → Anonymous), or the values in <code>.env.local</code> don't match your Firebase
+              project.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="stack">
+        <div className="card">
+          <span className="field-label">Personnel designation</span>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder="Dr. Bright"
             maxLength={24}
           />
-        </label>
-      </div>
+        </div>
 
-      <div className="card">
-        <h2>Create a lobby</h2>
-        <button disabled={!canSubmit} onClick={handleCreate}>
-          Create
-        </button>
-      </div>
+        <div className="card">
+          <h2>New session</h2>
+          <button className="primary" disabled={!canSubmit} onClick={handleCreate}>
+            Create lobby
+          </button>
+        </div>
 
-      <div className="card">
-        <h2>Join a lobby</h2>
-        <input
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value)}
-          placeholder="CODE"
-          maxLength={6}
-          style={{ textTransform: 'uppercase' }}
-        />
-        <button disabled={!canSubmit || !joinCode.trim()} onClick={handleJoin} style={{ marginLeft: '0.5rem' }}>
-          Join
-        </button>
-      </div>
+        <div className="card">
+          <h2>Join session</h2>
+          <span className="field-label">Access code</span>
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            placeholder="CODE"
+            maxLength={6}
+            style={{ textTransform: 'uppercase', marginBottom: 'var(--space-2)' }}
+          />
+          <button disabled={!canSubmit || !joinCode.trim()} onClick={handleJoin}>
+            Join lobby
+          </button>
+        </div>
 
-      {error && <p style={{ color: '#ff6b6b' }}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
+      </div>
     </div>
   )
 }

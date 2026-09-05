@@ -39,21 +39,33 @@ export default function DayPhaseView() {
 
   return (
     <div className="card">
-      <h2>{isOvertime ? 'Overtime vote' : 'Day phase'}</h2>
-      <p>Time remaining: {seconds}s</p>
-      {isOvertime && <p>Sudden death: every living player must vote, no abstaining.</p>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <h2 style={{ marginBottom: 0 }}>{isOvertime ? 'Overtime vote' : 'Day phase'}</h2>
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: '1.3rem',
+            color: seconds <= 30 ? 'var(--danger)' : 'var(--accent)',
+          }}
+        >
+          {seconds}s
+        </span>
+      </div>
+      {isOvertime && <p className="faint">Sudden death: every living player must vote, no abstaining.</p>}
 
       {!me?.alive ? (
-        <p>You're a ghost — you can't vote, but you can send a tip below.</p>
+        <p className="muted">You're a ghost — you can't vote, but you can send a tip below.</p>
       ) : myVote ? (
-        <p>You voted for {myVote.targetUid ? players.find((p) => p.uid === myVote.targetUid)?.displayName : 'abstain'}.</p>
+        <p className="muted">
+          You voted for {myVote.targetUid ? players.find((p) => p.uid === myVote.targetUid)?.displayName : 'abstain'}.
+        </p>
       ) : (
-        <div>
+        <div style={{ marginTop: 'var(--space-2)' }}>
           {living
             .filter((p) => p.uid !== uid)
             .map((p) => (
               <button key={p.uid} onClick={() => castVote(p.uid)} style={{ marginRight: '0.5rem', marginBottom: '0.5rem' }}>
-                Vote {p.displayName} ({tallyByTarget.get(p.uid) ?? 0})
+                {p.displayName} ({tallyByTarget.get(p.uid) ?? 0})
               </button>
             ))}
           {!isOvertime && <button onClick={() => castVote(null)}>Abstain</button>}
