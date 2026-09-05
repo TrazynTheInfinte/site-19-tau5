@@ -120,8 +120,11 @@ export async function setPlayerConnected(lobbyId: string, uid: string, connected
   await updateDoc(playerDocRef(lobbyId, uid), { connected, lastSeen: Date.now() })
 }
 
+/** Pre-game only: host removes the player entirely. Just setting connected:false didn't
+ * work - the kicked player's own presence heartbeat (running every 5s in their still-open
+ * tab) immediately flipped it back to true, since nothing actually removed them. */
 export async function kickPlayer(lobbyId: string, uid: string): Promise<void> {
-  await updateDoc(playerDocRef(lobbyId, uid), { connected: false })
+  await deleteDoc(playerDocRef(lobbyId, uid))
 }
 
 /** Pre-game only: fully removes the player from the lobby roster. */

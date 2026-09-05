@@ -26,9 +26,11 @@ service cloud.firestore {
         allow create: if request.auth.uid == uid;
         allow update: if request.auth.uid == uid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
-        // Leaving before the game starts removes the player doc entirely; once in_progress,
-        // leaving is a forfeit handled via update (alive: false), not a delete.
-        allow delete: if request.auth.uid == uid &&
+        // Leaving before the game starts (by yourself, or kicked by the host) removes the
+        // player doc entirely; once in_progress, leaving is a forfeit handled via update
+        // (alive: false), not a delete.
+        allow delete: if (request.auth.uid == uid ||
+            get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid) &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.status == 'lobby';
       }
 

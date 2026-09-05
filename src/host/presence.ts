@@ -23,13 +23,17 @@ export function useHostHeartbeat(lobbyId: string | null, uid: string | null, lob
 export function usePlayerPresence(lobbyId: string | null, uid: string | null) {
   useEffect(() => {
     if (!lobbyId || !uid) return
-    setPlayerConnected(lobbyId, uid, true)
-    const interval = setInterval(() => {
-      setPlayerConnected(lobbyId, uid, true)
-    }, HEARTBEAT_INTERVAL_MS)
+    // Best-effort: if the player doc no longer exists (e.g. the host just kicked them), this
+    // fails - that's expected, not a bug, so it's swallowed rather than left as an unhandled
+    // rejection every 5s.
+    const beat = (connected: boolean) => {
+      setPlayerConnected(lobbyId, uid, connected).catch(() => {})
+    }
+    beat(true)
+    const interval = setInterval(() => beat(true), HEARTBEAT_INTERVAL_MS)
     const handleUnload = () => {
       // best-effort; Firestore has no reliable beacon write, reconnection heartbeat is the real mechanism
-      setPlayerConnected(lobbyId, uid, false)
+      beat(false)
     }
     window.addEventListener('beforeunload', handleUnload)
     return () => {
