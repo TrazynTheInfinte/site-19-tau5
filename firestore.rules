@@ -96,6 +96,14 @@ service cloud.firestore {
         allow create: if request.auth.uid == uid;
         allow read, delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
+
+      match /tomeTransfers/{uid} {
+        // Doc id == the requesting holder's own uid. The resolver defensively re-checks that
+        // this uid actually IS the current holder before applying it, so the rule itself only
+        // needs to confirm self-authorship, not holder status.
+        allow create: if request.auth.uid == uid;
+        allow read, delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
     }
   }
 }

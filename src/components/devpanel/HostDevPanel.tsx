@@ -18,7 +18,7 @@ export default function HostDevPanel() {
 
   async function forceResolveNight() {
     if (lobby!.phase !== 'night') return
-    await resolveNightCycle(lobbyId!, lobby!.cycle, players)
+    await resolveNightCycle(lobbyId!, lobby!, players)
   }
 
   async function forceExpireDayTimer() {

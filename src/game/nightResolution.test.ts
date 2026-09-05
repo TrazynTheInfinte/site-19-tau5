@@ -159,6 +159,16 @@ describe('resolveNight', () => {
     ])
   })
 
+  it('the Tome holder reads as Foundation to investigation regardless of their real faction', () => {
+    const actions: NightAction[] = [
+      { cycle: 1, actorUid: 'researcher1', actionType: 'investigate', targetUid: 'infiltrator1' },
+    ]
+    const result = resolveNight(actions, baseRoles, 'infiltrator1')
+    expect(result.investigationResults).toEqual([
+      { type: 'investigate', actorUid: 'researcher1', targetUid: 'infiltrator1', targetFaction: 'foundation' },
+    ])
+  })
+
   it('Tracker learns whether the target submitted any action this cycle', () => {
     const actedActions: NightAction[] = [
       { cycle: 1, actorUid: 'tracker1', actionType: 'track', targetUid: 'infiltrator1' },

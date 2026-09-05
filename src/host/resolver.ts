@@ -9,6 +9,7 @@ import { nightAbilityFor } from '../game/nightActionAbilities'
 import { DAY_PHASE_DURATION_MS } from '../game/constants'
 import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
 import {
+  consumeTomeTransfer,
   getAllSecretRoles,
   getNightActions,
   getPuppeteerOverride,
@@ -65,6 +66,23 @@ async function guardedAdvance(lobbyId: string, expectedPhase: string, expectedCy
   })
 }
 
+/** If the Tome's current holder was just eliminated, it passes to a random living CI
+ * teammate (or nobody, if none remain) - the auto-pass half of the Tome mechanic. */
+async function reassignTomeIfHolderDied(
+  lobbyId: string,
+  currentHolderUid: string | null,
+  eliminatedUid: string,
+  roles: RoleAssignments,
+  players: PlayerWithId[],
+) {
+  if (currentHolderUid !== eliminatedUid) return
+  const livingCiUids = players
+    .filter((p) => p.alive && p.uid !== eliminatedUid && roles.get(p.uid)?.faction === 'ci')
+    .map((p) => p.uid)
+  const newHolder = livingCiUids.length > 0 ? livingCiUids[Math.floor(Math.random() * livingCiUids.length)] : null
+  await updateDoc(doc(db, 'lobbies', lobbyId), { tomeHolderUid: newHolder })
+}
+
 /** Shared by every game-ending path (night kill wins it, day vote wins it, overtime draws):
  * records any Puppeteer/Cartographer survive-to-end wins alongside the main outcome. */
 async function endGame(
@@ -81,13 +99,15 @@ async function endGame(
 }
 
 /** Exported for the Dr. Bright dev panel's "force resolve night now" testing shortcut. */
-export async function resolveNightCycle(lobbyId: string, cycle: number, players: PlayerWithId[]) {
+export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[]) {
+  const cycle = lobby.cycle
   const roles = await getAllSecretRoles(lobbyId)
   const actions = await getNightActions(lobbyId, cycle)
-  const result = resolveNight(actions, roles)
+  const result = resolveNight(actions, roles, lobby.tomeHolderUid)
 
   if (result.eliminatedUid) {
     await eliminatePlayer(lobbyId, result.eliminatedUid, cycle)
+    await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, result.eliminatedUid, roles, players)
 
     const event: EliminationEvent = { uid: result.eliminatedUid, cause: 'kill', cycle }
     const wins = checkPersonalWins(event, roles)
@@ -166,6 +186,7 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
 
   if (tally.eliminatedUid) {
     await eliminatePlayer(lobbyId, tally.eliminatedUid, lobby.cycle)
+    await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, tally.eliminatedUid, roles, players)
 
     const event: EliminationEvent = { uid: tally.eliminatedUid, cause: 'vote', cycle: lobby.cycle }
     const wins = checkPersonalWins(event, roles)
@@ -240,7 +261,7 @@ export function useHostResolver(
       const allSubmitted = required.every((r) => submittedUids.has(r))
       if (allSubmitted && !cancelled) {
         resolvingRef.current = true
-        await resolveNightCycle(lobbyId, lobby.cycle, currentPlayers)
+        await resolveNightCycle(lobbyId, lobby, currentPlayers)
         resolvingRef.current = false
       }
     }
@@ -259,6 +280,21 @@ export function useHostResolver(
     let cancelled = false
 
     const check = async () => {
+      if (cancelled) return
+      // Applying a pending Tome transfer runs independently of vote resolution/timers - a
+      // hand-off can happen any time during the day, not just at the moment the day ends.
+      if (lobby.tomeHolderUid) {
+        const transfer = await consumeTomeTransfer(lobbyId, lobby.tomeHolderUid)
+        if (transfer) {
+          const roles = await getAllSecretRoles(lobbyId)
+          const toAssignment = roles.get(transfer.toUid)
+          const toPlayer = playersRef.current.find((p) => p.uid === transfer.toUid)
+          if (toAssignment?.faction === 'ci' && toPlayer?.alive) {
+            await updateDoc(doc(db, 'lobbies', lobbyId), { tomeHolderUid: transfer.toUid })
+          }
+        }
+      }
+
       if (resolvingRef.current || cancelled) return
       const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
       if (!timerExpired) {
@@ -280,5 +316,5 @@ export function useHostResolver(
       cancelled = true
       clearInterval(interval)
     }
-  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline])
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline, lobby?.tomeHolderUid])
 }

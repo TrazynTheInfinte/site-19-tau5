@@ -53,6 +53,7 @@ export async function createLobby(hostUid: string, hostDisplayName: string): Pro
     rolePoolSelection: ALL_ROLE_IDS,
     winner: null,
     personalWinners: [],
+    tomeHolderUid: null,
     createdAt: Date.now(),
   }
   await setDoc(lobbyDocRef(code), lobby)

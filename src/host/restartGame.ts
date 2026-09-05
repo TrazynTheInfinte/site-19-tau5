@@ -21,5 +21,6 @@ export async function restartGame(lobbyId: string, playerUids: string[]): Promis
     phaseDeadline: null,
     winner: null,
     personalWinners: [],
+    tomeHolderUid: null,
   })
 }

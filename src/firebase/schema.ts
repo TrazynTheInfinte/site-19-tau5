@@ -16,6 +16,9 @@ export interface LobbyDoc {
   winner: 'foundation' | 'ci' | 'draw' | null
   /** uids of Serpent's Hand players who've independently met their personal win condition; doesn't end the game. */
   personalWinners: string[]
+  /** Chaos Insurgency's shared Tome: whoever holds it may kill as their night action regardless
+   * of role, and reads as Foundation to investigation. Null if no CI is in this game's role pool. */
+  tomeHolderUid: string | null
   createdAt: number
 }
 
@@ -88,6 +91,13 @@ export interface GhostTipDoc {
 export interface WillDoc {
   text: string
   updatedAt: number
+}
+
+/** A pending Tome hand-off, requested by the current holder. Doc id == the current holder's
+ * uid, so there's at most one pending request per holder at a time. */
+export interface TomeTransferDoc {
+  toUid: string
+  requestedAt: number
 }
 
 /** Composite doc id helper for per-cycle-per-actor collections (nightActions, nightResults, votes). */

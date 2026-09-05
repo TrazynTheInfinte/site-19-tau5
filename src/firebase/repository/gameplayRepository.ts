@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -19,6 +20,7 @@ import type {
   PublicCycleLogDoc,
   PuppeteerOverrideDoc,
   SecretRoleDoc,
+  TomeTransferDoc,
   VoteDoc,
   WillDoc,
 } from '../schema'
@@ -38,6 +40,7 @@ const GAMEPLAY_COLLECTIONS = [
   'ghostTips',
   'wills',
   'puppeteerOverrides',
+  'tomeTransfers',
 ] as const
 
 /** Host-only: wipes all of a completed game's per-cycle/per-role data so a restart doesn't
@@ -222,4 +225,23 @@ export async function getPuppeteerOverride(lobbyId: string, cycle: number): Prom
   const q = query(col(lobbyId, 'puppeteerOverrides'), where('cycle', '==', cycle))
   const snap = await getDocs(q)
   return snap.empty ? null : (snap.docs[0].data() as PuppeteerOverrideDoc)
+}
+
+// ---- tomeTransfers (only the current holder writes their own; host-only read/consume) ----
+
+export async function requestTomeTransfer(lobbyId: string, fromUid: string, toUid: string): Promise<void> {
+  await setDoc(doc(db, 'lobbies', lobbyId, 'tomeTransfers', fromUid), {
+    toUid,
+    requestedAt: Date.now(),
+  } satisfies TomeTransferDoc)
+}
+
+/** Host-only: reads and immediately deletes any pending transfer for the given holder, so it's consumed exactly once. */
+export async function consumeTomeTransfer(lobbyId: string, holderUid: string): Promise<TomeTransferDoc | null> {
+  const ref = doc(db, 'lobbies', lobbyId, 'tomeTransfers', holderUid)
+  const snap = await getDoc(ref)
+  if (!snap.exists()) return null
+  const data = snap.data() as TomeTransferDoc
+  await deleteDoc(ref)
+  return data
 }

@@ -12,6 +12,7 @@ import PlayerList from '../components/game/PlayerList'
 import WillEditor from '../components/game/WillEditor'
 import Notepad from '../components/game/Notepad'
 import PuppeteerControl from '../components/game/PuppeteerControl'
+import TomeControl from '../components/game/TomeControl'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
 
 export default function GameRoute() {
@@ -43,6 +44,7 @@ export default function GameRoute() {
         <>
           <DayPhaseView />
           <PuppeteerControl />
+          <TomeControl />
         </>
       )}
       {!me?.alive && <GhostTipComposer />}
