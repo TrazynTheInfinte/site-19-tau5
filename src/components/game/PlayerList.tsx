@@ -3,7 +3,9 @@ import { useAuth } from '../../context/AuthContext'
 import { useLobby, type PlayerWithId } from '../../context/LobbyContext'
 import { subscribeRevealedRole, subscribeWill } from '../../firebase/repository/gameplayRepository'
 import { getSuspicion, setSuspicion, type Suspicion } from '../../notes/localGameNotes'
-import { ROLE_DEFINITIONS } from '../../game/types'
+import { ROLE_DEFINITIONS, type Faction, type RoleId } from '../../game/types'
+import { ROLE_ICONS } from '../../game/roleIcons'
+import Icon from '../icons/Icon'
 
 const SUSPICION_LABEL: Record<Suspicion, string> = {
   unknown: 'Unknown',
@@ -28,17 +30,17 @@ function RevealedWill({ lobbyId, uid }: { lobbyId: string; uid: string }) {
 }
 
 function RevealedRole({ lobbyId, uid }: { lobbyId: string; uid: string }) {
-  const [role, setRole] = useState<{ role: string; faction: string } | null>(null)
+  const [role, setRole] = useState<{ role: RoleId; faction: Faction } | null>(null)
 
   useEffect(() => {
     return subscribeRevealedRole(lobbyId, uid, (r) => setRole(r ? { role: r.role, faction: r.faction } : null))
   }, [lobbyId, uid])
 
   if (!role) return null
-  const def = ROLE_DEFINITIONS[role.role as keyof typeof ROLE_DEFINITIONS]
+  const def = ROLE_DEFINITIONS[role.role]
   return (
-    <span className={`faction-${role.faction}`} style={{ marginLeft: '0.5rem' }}>
-      ({def?.name ?? role.role})
+    <span className={`faction-${role.faction}`} style={{ marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+      <Icon svg={ROLE_ICONS[role.role]} size={16} />({def?.name ?? role.role})
     </span>
   )
 }

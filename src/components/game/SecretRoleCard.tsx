@@ -4,6 +4,8 @@ import { useLobby } from '../../context/LobbyContext'
 import { useGameState } from '../../context/GameStateContext'
 import { getAllSecretRoles } from '../../firebase/repository/gameplayRepository'
 import { ROLE_DEFINITIONS, type RoleAssignment } from '../../game/types'
+import { ROLE_DESCRIPTIONS } from '../../game/roleDescriptions'
+import RoleBadge from './RoleBadge'
 
 export default function SecretRoleCard() {
   const { uid } = useAuth()
@@ -33,15 +35,28 @@ export default function SecretRoleCard() {
 
   return (
     <div className="card">
-      <h2>Your role</h2>
-      <p>
-        <strong className={`faction-${def.faction}`}>{def.name}</strong> ({def.faction})
+      <h3>Your role</h3>
+      <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
+        <RoleBadge role={myRole.role} faction={myRole.faction} />
+        <div>
+          <strong className={`faction-${def.faction}`} style={{ fontSize: '1.05rem' }}>
+            {def.name}
+          </strong>
+          <div className={`faction-${def.faction}`} style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            {def.faction === 'serpentsHand' ? "Serpent's Hand" : def.faction === 'ci' ? 'Chaos Insurgency' : 'Foundation'}
+          </div>
+        </div>
+      </div>
+
+      <p className="muted" style={{ marginTop: 'var(--space-3)' }}>
+        {ROLE_DESCRIPTIONS[myRole.role]}
       </p>
+
       {myRole.role === 'theMarked' && myRole.markedTargetUid && (
-        <p>Your target's elimination wins the game for you.</p>
+        <p className="faint">Your target's elimination wins the game for you.</p>
       )}
       {teammates.length > 0 && (
-        <p>
+        <p className="faint">
           Chaos Insurgency teammates:{' '}
           {teammates.map((t) => `${nameFor(t.uid)} (${ROLE_DEFINITIONS[t.role].name})`).join(', ')}
         </p>

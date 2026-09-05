@@ -49,7 +49,6 @@ export default function GameRoute() {
 
       <div className="game-shell__body">
         <div className="game-shell__main">
-          <SecretRoleCard />
           {lobby.phase === 'briefing' && <BriefingView />}
           {lobby.phase === 'night' && <NightPhaseView />}
           {(lobby.phase === 'day' || lobby.phase === 'overtime') && (
@@ -64,6 +63,7 @@ export default function GameRoute() {
         </div>
 
         <div className="game-shell__sidebar">
+          <SecretRoleCard />
           <PlayerList />
           <GhostTipFeed />
           {me?.alive && (

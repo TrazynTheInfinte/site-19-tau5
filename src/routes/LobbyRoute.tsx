@@ -5,7 +5,9 @@ import { useLobby } from '../context/LobbyContext'
 import { kickPlayer, leavePreGameLobby, setRolePoolSelection } from '../firebase/repository/lobbyRepository'
 import { startGame } from '../host/startGame'
 import { ALL_ROLE_IDS, ROLE_DEFINITIONS, type RoleId } from '../game/types'
+import { ROLE_ICONS } from '../game/roleIcons'
 import LobbyQrCode from '../components/lobby/LobbyQrCode'
+import Icon from '../components/icons/Icon'
 
 const MIN_PLAYERS = 4
 
@@ -112,6 +114,7 @@ export default function LobbyRoute() {
                       checked={lobby.rolePoolSelection.includes(role)}
                       onChange={() => toggleRole(role)}
                     />
+                    <Icon svg={ROLE_ICONS[role]} size={18} className={`faction-${ROLE_DEFINITIONS[role].faction}`} />
                     <span style={{ color: 'var(--text-primary)' }}>{ROLE_DEFINITIONS[role].name}</span>
                     <span className={`faction-${ROLE_DEFINITIONS[role].faction}`} style={{ fontSize: '0.75rem' }}>
                       {ROLE_DEFINITIONS[role].faction}
