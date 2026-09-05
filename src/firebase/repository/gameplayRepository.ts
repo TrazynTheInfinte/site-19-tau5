@@ -28,6 +28,29 @@ function col(lobbyId: string, name: string) {
   return collection(db, 'lobbies', lobbyId, name)
 }
 
+const GAMEPLAY_COLLECTIONS = [
+  'secretRoles',
+  'nightActions',
+  'nightResults',
+  'votes',
+  'publicCycleLog',
+  'ghostTips',
+  'wills',
+] as const
+
+/** Host-only: wipes all of a completed game's per-cycle/per-role data so a restart doesn't
+ * collide with stale docs from the previous game (e.g. old cycle-1 votes would otherwise
+ * look like already-submitted votes for the new game's cycle 1). */
+export async function resetGameplayData(lobbyId: string): Promise<void> {
+  for (const name of GAMEPLAY_COLLECTIONS) {
+    const snap = await getDocs(col(lobbyId, name))
+    if (snap.empty) continue
+    const batch = writeBatch(db)
+    snap.docs.forEach((d) => batch.delete(d.ref))
+    await batch.commit()
+  }
+}
+
 // ---- secretRoles ----
 
 export async function writeSecretRoles(lobbyId: string, assignments: RoleAssignments): Promise<void> {

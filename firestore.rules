@@ -41,6 +41,8 @@ service cloud.firestore {
       match /nightActions/{actionId} {
         allow create: if request.auth.uid == request.resource.data.actorUid;
         allow read: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+        // Host-only: clearing prior-game data on restart.
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 
       match /nightResults/{resultId} {
@@ -52,6 +54,8 @@ service cloud.firestore {
       match /votes/{voteId} {
         allow create: if request.auth.uid == request.resource.data.voterUid;
         allow read: if request.auth != null;
+        // Host-only: clearing prior-game data on restart.
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 
       match /publicCycleLog/{cycleId} {
@@ -63,6 +67,8 @@ service cloud.firestore {
         allow create: if request.auth.uid == request.resource.data.authorUid &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == false;
         allow read: if request.auth != null;
+        // Host-only: clearing prior-game data on restart.
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 
       match /wills/{uid} {
@@ -74,6 +80,8 @@ service cloud.firestore {
         allow read: if request.auth.uid == uid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == false;
+        // Host-only: clearing prior-game data on restart.
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
     }
   }
