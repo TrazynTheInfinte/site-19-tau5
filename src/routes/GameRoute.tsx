@@ -33,29 +33,53 @@ export default function GameRoute() {
     )
   }
 
+  // On a desktop-sized viewport, .game-shell arranges into a fixed-height, no-scroll sidebar
+  // layout (see index.css); below that breakpoint the same markup just stacks and scrolls
+  // like every other route, so nothing is hidden on a smaller window.
   return (
-    <div>
+    <div className="game-shell">
       <div className={`phase-banner phase-banner--${lobby.phase}`}>
         <h1>{lobby.phase === 'overtime' ? 'Overtime' : lobby.phase}</h1>
-        <span className="phase-banner__label">Cycle {lobby.cycle} / {lobby.cycleCap}</span>
+        <span className="phase-banner__label">
+          Cycle {lobby.cycle} / {lobby.cycleCap}
+        </span>
       </div>
-      <SecretRoleCard />
-      {lobby.phase === 'night' && <NightPhaseView />}
-      {(lobby.phase === 'day' || lobby.phase === 'overtime') && (
-        <>
-          <DayPhaseView />
-          <PuppeteerControl />
-          <TomeControl />
-        </>
-      )}
-      {!me?.alive && <GhostTipComposer />}
-      <GhostTipFeed />
-      <PlayerList />
-      {me?.alive && <WillEditor />}
-      <Notepad />
-      <CycleLog />
-      <LeaveGameButton />
-      {isDrBright && <HostDevPanel />}
+
+      <div className="game-shell__body">
+        <div className="game-shell__main">
+          <SecretRoleCard />
+          {lobby.phase === 'night' && <NightPhaseView />}
+          {(lobby.phase === 'day' || lobby.phase === 'overtime') && (
+            <>
+              <DayPhaseView />
+              <PuppeteerControl />
+              <TomeControl />
+            </>
+          )}
+          {!me?.alive && <GhostTipComposer />}
+          {isDrBright && <HostDevPanel />}
+        </div>
+
+        <div className="game-shell__sidebar">
+          <PlayerList />
+          <GhostTipFeed />
+          {me?.alive && (
+            <details className="card collapsible">
+              <summary>Your will</summary>
+              <WillEditor />
+            </details>
+          )}
+          <details className="card collapsible">
+            <summary>Notepad</summary>
+            <Notepad />
+          </details>
+          <details className="card collapsible">
+            <summary>Cycle log</summary>
+            <CycleLog />
+          </details>
+          <LeaveGameButton />
+        </div>
+      </div>
     </div>
   )
 }

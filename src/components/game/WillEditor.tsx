@@ -28,9 +28,10 @@ export default function WillEditor() {
   }
 
   return (
-    <div className="card">
-      <h3>Your will</h3>
-      <p>Revealed to everyone if you're eliminated. Locked at the moment you die, so keep it updated while you can.</p>
+    <>
+      <p className="faint">
+        Revealed to everyone if you're eliminated. Locked at the moment you die, so keep it updated while you can.
+      </p>
       <textarea
         value={text}
         onChange={(e) => {
@@ -39,12 +40,10 @@ export default function WillEditor() {
         }}
         maxLength={500}
         rows={4}
-        style={{ width: '100%', resize: 'vertical' }}
       />
-      <br />
-      <button onClick={handleSave} disabled={saved || saving} style={{ marginTop: '0.5rem' }}>
+      <button onClick={handleSave} disabled={saved || saving} style={{ marginTop: 'var(--space-2)' }}>
         {saving ? 'Saving...' : saved ? 'Saved' : 'Save will'}
       </button>
-    </div>
+    </>
   )
 }

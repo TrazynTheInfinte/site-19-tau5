@@ -10,20 +10,17 @@ export default function CycleLog() {
   const nameFor = (uid: string) => players.find((p) => p.uid === uid)?.displayName ?? uid
 
   return (
-    <div className="card">
-      <h3>Cycle log</h3>
-      <ul>
-        {publicCycleLog.map((entry) => (
-          <li key={entry.cycle}>
-            Cycle {entry.cycle}:{' '}
-            {entry.tie
-              ? 'vote tied, no one eliminated'
-              : entry.eliminatedUid
-                ? `${nameFor(entry.eliminatedUid)} eliminated (${entry.causeOfDeath})`
-                : 'no one eliminated'}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul>
+      {publicCycleLog.map((entry) => (
+        <li key={entry.cycle}>
+          Cycle {entry.cycle}:{' '}
+          {entry.tie
+            ? 'vote tied, no one eliminated'
+            : entry.eliminatedUid
+              ? `${nameFor(entry.eliminatedUid)} eliminated (${entry.causeOfDeath})`
+              : 'no one eliminated'}
+        </li>
+      ))}
+    </ul>
   )
 }

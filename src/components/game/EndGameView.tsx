@@ -73,7 +73,10 @@ export default function EndGameView() {
         )}
       </div>
 
-      <CycleLog />
+      <div className="card">
+        <h3>Cycle log</h3>
+        <CycleLog />
+      </div>
 
       <div className="card">
         {isHost ? (

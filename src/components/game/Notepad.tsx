@@ -12,8 +12,8 @@ export default function Notepad() {
   if (!lobby || !uid) return null
 
   return (
-    <div className="card">
-      <h3>Notepad (private, only visible to you)</h3>
+    <>
+      <p className="faint">Private — only visible to you.</p>
       <textarea
         value={text}
         onChange={(e) => {
@@ -21,9 +21,8 @@ export default function Notepad() {
           setNotepad(lobby.code, uid, e.target.value)
         }}
         rows={5}
-        style={{ width: '100%', resize: 'vertical' }}
         placeholder="Track your theories here..."
       />
-    </div>
+    </>
   )
 }

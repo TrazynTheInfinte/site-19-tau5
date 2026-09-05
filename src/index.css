@@ -339,6 +339,72 @@ label { color: var(--text-muted); font-size: 0.85rem; }
   50% { box-shadow: 0 0 18px rgba(226, 83, 74, 0.2); }
 }
 
+/* ---- Game screen: no-scroll sidebar layout at desktop sizes ---- */
+/* Below the breakpoint this is inert - GameRoute just renders as normal stacked, scrolling
+   cards (same markup either way; only these rules change how it's arranged). */
+
+@media (min-width: 1100px) and (min-height: 760px) {
+  .app-shell:has(.game-shell) {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: var(--space-3);
+  }
+
+  .game-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .game-shell__body {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: var(--space-3);
+    flex: 1;
+    min-height: 0;
+  }
+
+  .game-shell__main {
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .game-shell__sidebar {
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+}
+
+.collapsible summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  list-style: none;
+}
+
+.collapsible summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible summary::before {
+  content: '▸ ';
+  color: var(--accent);
+}
+
+.collapsible[open] summary::before {
+  content: '▾ ';
+}
+
+.collapsible[open] summary {
+  margin-bottom: var(--space-2);
+}
+
 /* ---- Misc ---- */
 
 .muted { color: var(--text-muted); }
