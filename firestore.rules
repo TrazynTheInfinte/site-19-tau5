@@ -39,10 +39,12 @@ service cloud.firestore {
         // kill together" (CONTEXT.md) already implied they know each other, and Anomaly
         // specifically needs to know who not to target. A query naturally excludes denied
         // docs rather than failing outright, since this is a per-document content check.
+        // Also public once the player is eliminated - roles reveal on death.
         allow read: if request.auth.uid == uid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
           (get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.faction == 'ci' &&
-           resource.data.faction == 'ci');
+           resource.data.faction == 'ci') ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == false;
         allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 

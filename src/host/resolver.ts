@@ -32,14 +32,21 @@ async function eliminatePlayer(lobbyId: string, uid: string, cycle: number) {
   await updateDoc(doc(db, 'lobbies', lobbyId, 'players', uid), { alive: false, eliminatedCycle: cycle })
 }
 
-function requiredNightActorUids(players: PlayerWithId[], roles: RoleAssignments): string[] {
+function requiredNightActorUids(
+  players: PlayerWithId[],
+  roles: RoleAssignments,
+  tomeHolderUid: string | null,
+): string[] {
   return players
     .filter((p) => p.alive)
     .filter((p) => {
       const assignment = roles.get(p.uid)
       if (!assignment) return false
       if (assignment.role === 'saboteur' && assignment.saboteurUsed) return false
-      return nightAbilityFor(assignment.role) !== null
+      if (nightAbilityFor(assignment.role) !== null) return true
+      // A CI role with no innate ability (Infiltrator) is still required to act if it's
+      // currently the Tome holder - killing is the Tome's privilege now, not a role ability.
+      return assignment.uid === tomeHolderUid
     })
     .map((p) => p.uid)
 }
@@ -255,7 +262,7 @@ export function useHostResolver(
       if (resolvingRef.current || cancelled) return
       const currentPlayers = playersRef.current
       const roles = await getAllSecretRoles(lobbyId)
-      const required = requiredNightActorUids(currentPlayers, roles)
+      const required = requiredNightActorUids(currentPlayers, roles, lobby.tomeHolderUid)
       const actions = await getNightActions(lobbyId, lobby.cycle)
       const submittedUids = new Set(actions.map((a) => a.actorUid))
       const allSubmitted = required.every((r) => submittedUids.has(r))

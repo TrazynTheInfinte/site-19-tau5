@@ -12,7 +12,9 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 
 **Cycle / Night-Day cycle** — One round of the game consisting of a night phase (secret role actions) followed by a day phase (discussion + vote). The game is multi-cycle (unlike One Night Ultimate Werewolf's single round), capped at a small number of cycles (3-4) to suit a 4-5 player lobby.
 
-**Ghost** — An eliminated player. Ghosts do not spectate passively: once per remaining cycle they can send one anonymous tip (a short message/clue) to living players. Ghosts get no bonus information on death (e.g. do not learn everyone's role) — they know only what they knew while alive, plus whatever they can infer.
+**Ghost** — An eliminated player. Ghosts do not spectate passively: once per remaining cycle they can send one anonymous tip (a short message/clue) to living players. A ghost gains no special omniscience about *other* players' roles beyond what's now public (see role reveal below) — they know only what they knew while alive, plus whatever they can infer.
+
+**Role reveal on death** — The instant a player is eliminated (by any cause — vote, night kill, or forfeit), their own role and faction become visible to everyone, living and dead alike. This is about that player's identity becoming public, not about ghosts learning anything extra about anyone else.
 
 **Foundation win condition** — Foundation wins when all Chaos Insurgency members have been eliminated.
 
@@ -36,7 +38,7 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 - *Warden* — each night, detains a target: blocks their action and protects them from elimination, simultaneously. Once per game, may instead Execute the detained target — an unblockable kill (scaled down from Town of Salem's Jailer, which also gets a free kill on top of the jail, for this game's smaller player counts).
 
 **Chaos Insurgency:**
-- *Infiltrator* — each night, the CI team chooses a player to eliminate.
+- *Infiltrator* — no innate night ability. Killing is exclusively the Tome's privilege (see below), for every CI role including Infiltrator — Infiltrator's distinction is simply that it starts the game holding the Tome.
 - *Saboteur* — once per game, blocks another player's night ability instead of the normal CI kill.
 - *Framer* — each night, makes a target appear as Chaos Insurgency to any Researcher investigation that same night.
 - *Anomaly* — once per game (not the first night), strikes a target with an unblockable kill; cannot target another Chaos Insurgency member. Adapted from Town of Salem's Conjurer, which does this during the day and stays anonymous — here it's a night action instead (reuses the existing resolution machinery rather than needing a whole separate day-action pathway), and anonymity is already free since nobody learns who killed whom anyway.

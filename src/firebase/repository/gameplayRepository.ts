@@ -84,6 +84,16 @@ export function subscribeMySecretRole(lobbyId: string, uid: string, cb: (role: S
   })
 }
 
+/** For viewing another player's role once it's public (dead, or a CI teammate) - resolves to
+ * null on permission-denied (e.g. still alive and not a teammate) rather than hanging. */
+export function subscribeRevealedRole(lobbyId: string, uid: string, cb: (role: SecretRoleDoc | null) => void): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'lobbies', lobbyId, 'secretRoles', uid),
+    (snap) => cb(snap.exists() ? (snap.data() as SecretRoleDoc) : null),
+    () => cb(null),
+  )
+}
+
 /** Host-only: reads every player's role, needed to resolve nights and assign Marked's target. */
 export async function getAllSecretRoles(lobbyId: string): Promise<RoleAssignments> {
   const snap = await getDocs(col(lobbyId, 'secretRoles'))

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useLobby, type PlayerWithId } from '../../context/LobbyContext'
-import { subscribeWill } from '../../firebase/repository/gameplayRepository'
+import { subscribeRevealedRole, subscribeWill } from '../../firebase/repository/gameplayRepository'
 import { getSuspicion, setSuspicion, type Suspicion } from '../../notes/localGameNotes'
+import { ROLE_DEFINITIONS } from '../../game/types'
 
 const SUSPICION_LABEL: Record<Suspicion, string> = {
   unknown: 'Unknown',
@@ -23,6 +24,22 @@ function RevealedWill({ lobbyId, uid }: { lobbyId: string; uid: string }) {
     <div style={{ marginTop: '0.25rem', paddingLeft: '1rem', fontStyle: 'italic', opacity: 0.85 }}>
       Will: "{text}"
     </div>
+  )
+}
+
+function RevealedRole({ lobbyId, uid }: { lobbyId: string; uid: string }) {
+  const [role, setRole] = useState<{ role: string; faction: string } | null>(null)
+
+  useEffect(() => {
+    return subscribeRevealedRole(lobbyId, uid, (r) => setRole(r ? { role: r.role, faction: r.faction } : null))
+  }, [lobbyId, uid])
+
+  if (!role) return null
+  const def = ROLE_DEFINITIONS[role.role as keyof typeof ROLE_DEFINITIONS]
+  return (
+    <span className={`faction-${role.faction}`} style={{ marginLeft: '0.5rem' }}>
+      ({def?.name ?? role.role})
+    </span>
   )
 }
 
@@ -72,6 +89,7 @@ export default function PlayerList() {
           <li key={p.uid} style={{ marginBottom: '0.5rem', opacity: p.alive ? 1 : 0.6 }}>
             <span>{p.alive ? '🟢' : '💀'}</span> {p.displayName}
             {!p.connected && ' (disconnected)'}
+            {!p.alive && <RevealedRole lobbyId={lobby.code} uid={p.uid} />}
             {p.uid !== uid && (
               <SuspicionSelect lobbyCode={lobby.code} viewerUid={uid} targetUid={p.uid} />
             )}
