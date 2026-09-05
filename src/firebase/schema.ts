@@ -31,6 +31,9 @@ export interface PlayerDoc {
   alive: boolean
   isHost: boolean
   eliminatedCycle: number | null
+  /** Clicked "ready" during the briefing (cycle 0) - lets the briefing end early once everyone has,
+   * same early-exit pattern as the day phase's "everyone's voted" check. Reset false at game start. */
+  briefingReady: boolean
 }
 
 export interface SecretRoleDoc {
