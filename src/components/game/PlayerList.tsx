@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useLobby, type PlayerWithId } from '../../context/LobbyContext'
-import { subscribeRevealedRole, subscribeWill } from '../../firebase/repository/gameplayRepository'
+import { useGameState } from '../../context/GameStateContext'
+import { getAllSecretRoles, subscribeRevealedRole, subscribeWill } from '../../firebase/repository/gameplayRepository'
 import { getSuspicion, setSuspicion, type Suspicion } from '../../notes/localGameNotes'
 import { ROLE_DEFINITIONS, type Faction, type RoleId } from '../../game/types'
 import { ROLE_ICONS } from '../../game/roleIcons'
@@ -75,9 +76,40 @@ function SuspicionSelect({
   )
 }
 
+/** Known CI teammates' roles, keyed by uid - CI players already know each other, so this
+ * replaces the suspicion-guess dropdown with the actual role for those rows. */
+function useCiTeammateRoles(lobbyId: string | undefined, uid: string | undefined, isCi: boolean) {
+  const [roles, setRoles] = useState<Map<string, RoleId>>(new Map())
+
+  useEffect(() => {
+    if (!lobbyId || !uid || !isCi) {
+      setRoles(new Map())
+      return
+    }
+    let cancelled = false
+    // Must re-filter to faction 'ci' client-side: a CI player who's also the host gets every
+    // player's doc back via the host resolver's rules bypass, not just their teammates'.
+    getAllSecretRoles(lobbyId).then((assignments) => {
+      if (cancelled) return
+      const next = new Map<string, RoleId>()
+      for (const a of assignments.values()) {
+        if (a.uid !== uid && a.faction === 'ci') next.set(a.uid, a.role)
+      }
+      setRoles(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [lobbyId, uid, isCi])
+
+  return roles
+}
+
 export default function PlayerList() {
   const { uid } = useAuth()
-  const { lobby, players } = useLobby()
+  const { lobbyId, lobby, players } = useLobby()
+  const { myRole } = useGameState()
+  const ciTeammateRoles = useCiTeammateRoles(lobbyId ?? undefined, uid ?? undefined, myRole?.faction === 'ci')
 
   if (!lobby || !uid) return null
 
@@ -104,7 +136,13 @@ export default function PlayerList() {
             <span>{p.displayName}</span>
             {!p.connected && <span className="faint">disconnected</span>}
             {!p.alive && <RevealedRole lobbyId={lobby.code} uid={p.uid} />}
-            {p.uid !== uid && <SuspicionSelect lobbyCode={lobby.code} viewerUid={uid} targetUid={p.uid} />}
+            {p.uid !== uid && p.alive && ciTeammateRoles.has(p.uid) ? (
+              <span className="faction-ci" style={{ marginLeft: '0.5rem' }}>
+                ({ROLE_DEFINITIONS[ciTeammateRoles.get(p.uid)!].name})
+              </span>
+            ) : (
+              p.uid !== uid && <SuspicionSelect lobbyCode={lobby.code} viewerUid={uid} targetUid={p.uid} />
+            )}
             {!p.alive && <RevealedWill lobbyId={lobby.code} uid={p.uid} />}
           </li>
         ))}

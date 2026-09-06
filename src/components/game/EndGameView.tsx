@@ -26,6 +26,7 @@ export default function EndGameView() {
   const { myRole } = useGameState()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!lobby || !lobbyId || !uid) return null
   const nameFor = (targetUid: string) => players.find((p) => p.uid === targetUid)?.displayName ?? targetUid
@@ -34,8 +35,12 @@ export default function EndGameView() {
 
   async function handleRestart() {
     setBusy(true)
+    setError(null)
     try {
       await restartGame(lobbyId!, players.map((p) => p.uid))
+    } catch (e) {
+      console.error('restartGame failed', e)
+      setError(e instanceof Error ? e.message : 'Failed to restart game')
     } finally {
       setBusy(false)
     }
@@ -91,6 +96,7 @@ export default function EndGameView() {
             {busy ? 'Leaving...' : 'Leave lobby'}
           </button>
         )}
+        {error && <p className="error-text">{error}</p>}
       </div>
     </div>
   )

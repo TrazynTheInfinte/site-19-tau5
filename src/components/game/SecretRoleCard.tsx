@@ -22,7 +22,10 @@ export default function SecretRoleCard() {
     // Rules grant CI-to-CI read access, so this naturally returns only self + CI teammates.
     getAllSecretRoles(lobbyId).then((roles) => {
       if (cancelled) return
-      setTeammates([...roles.values()].filter((r) => r.uid !== uid))
+      // The rules-side filter to CI-only docs only holds for a non-host reader; a CI player
+      // who is also the host gets every player's doc back (host resolver access), so this
+      // must re-filter by faction itself rather than trusting the query result as-is.
+      setTeammates([...roles.values()].filter((r) => r.uid !== uid && r.faction === 'ci'))
     })
     return () => {
       cancelled = true
@@ -53,7 +56,9 @@ export default function SecretRoleCard() {
       </p>
 
       {myRole.role === 'theMarked' && myRole.markedTargetUid && (
-        <p className="faint">Your target's elimination wins the game for you.</p>
+        <p className="faint">
+          Your target is <strong>{nameFor(myRole.markedTargetUid)}</strong>. Their elimination wins the game for you.
+        </p>
       )}
       {teammates.length > 0 && (
         <p className="faint">
