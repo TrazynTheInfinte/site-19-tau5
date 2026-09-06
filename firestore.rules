@@ -143,6 +143,20 @@ service cloud.firestore {
            get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.role == 'whisperer');
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
+
+      match /showdownPulls/{pullId} {
+        // Only the current turn-holder may create a pull, and only the next expected pull
+        // number - the resolver alone still decides who dies or when the phase advances, this
+        // just stops a stray/duplicate/out-of-turn write from confusing it. Broadly readable
+        // (not narrowed to the two participants) so every spectator can watch live, and so
+        // resetGameplayData's host getDocs() never hits the whispers-style "not every document
+        // is readable by the caller" failure.
+        allow create: if request.auth.uid == request.resource.data.actorUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.showdown.turnUid == request.auth.uid &&
+          request.resource.data.pullNumber == get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.showdown.pulls + 1;
+        allow read: if request.auth != null;
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
     }
   }
 }

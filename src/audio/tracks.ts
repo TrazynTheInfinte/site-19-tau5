@@ -6,7 +6,7 @@ function musicUrl(folder: string, file: string): string {
   return `/music/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`
 }
 
-export type LoopCategory = 'lobby' | 'night' | 'discussion' | 'voting'
+export type LoopCategory = 'lobby' | 'night' | 'discussion' | 'voting' | 'showdown'
 
 const LOOP_TRACKS: Record<LoopCategory, string[]> = {
   lobby: [musicUrl('lobby', 'Containment Protocol.mp3'), musicUrl('lobby', 'Containment Wing.mp3')],
@@ -15,6 +15,8 @@ const LOOP_TRACKS: Record<LoopCategory, string[]> = {
   // Was a one-shot "vote resolved" sting; now the voting phase's own ambient loop for its full
   // 60s, since voting is a dedicated timed phase rather than folded into a combined day phase.
   voting: [musicUrl('voting', 'Ashes of Verdict.mp3')],
+  // Plays for every player, not just the two participants - showdown is meant to be watched.
+  showdown: [musicUrl('Showdown', 'RUSSIAN ROULETTE  Miku.mp3')],
 }
 
 export function loopCategoryTracks(category: LoopCategory): string[] {

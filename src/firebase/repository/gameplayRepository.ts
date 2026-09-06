@@ -23,6 +23,7 @@ import type {
   PublicCycleLogDoc,
   PuppeteerOverrideDoc,
   SecretRoleDoc,
+  ShowdownPullDoc,
   TomeTransferDoc,
   VoteDoc,
   WhisperDoc,
@@ -51,6 +52,7 @@ const GAMEPLAY_COLLECTIONS = [
   'tomeTransfers',
   'dayChat',
   'whispers',
+  'showdownPulls',
   'secretRoles',
 ] as const
 
@@ -336,5 +338,33 @@ export async function sendWhisper(lobbyId: string, msg: Omit<WhisperDoc, 'sentAt
 export function subscribeMyWhispers(lobbyId: string, cb: (whispers: WhisperDoc[]) => void): Unsubscribe {
   return onSnapshot(col(lobbyId, 'whispers'), (snap) =>
     cb(snap.docs.map((d) => d.data() as WhisperDoc).sort((a, b) => a.sentAt - b.sentAt)),
+  )
+}
+
+// ---- showdownPulls (each pull is its own doc, id `{cycle}_{pullNumber}` - only the current
+// turn's participant may create one, enforced in firestore.rules; publicly readable so
+// spectators can watch the pull history live, not just the current turn/pull count) ----
+
+export async function submitShowdownPull(lobbyId: string, pull: Omit<ShowdownPullDoc, 'submittedAt'>): Promise<void> {
+  await setDoc(doc(db, 'lobbies', lobbyId, 'showdownPulls', `${pull.cycle}_${pull.pullNumber}`), {
+    ...pull,
+    submittedAt: Date.now(),
+  } satisfies ShowdownPullDoc)
+}
+
+export async function getShowdownPulls(lobbyId: string, cycle: number): Promise<ShowdownPullDoc[]> {
+  const q = query(col(lobbyId, 'showdownPulls'), where('cycle', '==', cycle))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => d.data() as ShowdownPullDoc).sort((a, b) => a.pullNumber - b.pullNumber)
+}
+
+export function subscribeShowdownPulls(
+  lobbyId: string,
+  cycle: number,
+  cb: (pulls: ShowdownPullDoc[]) => void,
+): Unsubscribe {
+  const q = query(col(lobbyId, 'showdownPulls'), where('cycle', '==', cycle))
+  return onSnapshot(q, (snap) =>
+    cb(snap.docs.map((d) => d.data() as ShowdownPullDoc).sort((a, b) => a.pullNumber - b.pullNumber)),
   )
 }

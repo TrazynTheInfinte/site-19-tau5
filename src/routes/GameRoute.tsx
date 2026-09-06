@@ -5,6 +5,7 @@ import BriefingView from '../components/game/BriefingView'
 import NightPhaseView from '../components/game/NightPhaseView'
 import DiscussionView from '../components/game/DiscussionView'
 import VotingPhaseView from '../components/game/VotingPhaseView'
+import ShowdownView from '../components/game/ShowdownView'
 import GhostTipComposer from '../components/game/GhostTipComposer'
 import GhostTipFeed from '../components/game/GhostTipFeed'
 import CycleLog from '../components/game/CycleLog'
@@ -55,6 +56,7 @@ export default function GameRoute() {
           {lobby.phase === 'briefing' && <BriefingView />}
           {lobby.phase === 'night' && <NightPhaseView />}
           {lobby.phase === 'discussion' && <DiscussionView />}
+          {lobby.phase === 'showdown' && <ShowdownView />}
           {(lobby.phase === 'voting' || lobby.phase === 'overtime') && (
             <>
               <VotingPhaseView />

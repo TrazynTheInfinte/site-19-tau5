@@ -149,7 +149,7 @@ export interface VoteTally {
   counts: Record<string, number>
 }
 
-export type EliminationCause = 'vote' | 'kill'
+export type EliminationCause = 'vote' | 'kill' | 'showdown'
 
 export interface EliminationEvent {
   uid: string

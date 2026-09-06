@@ -27,6 +27,7 @@ export async function restartGame(lobbyId: string, playerUids: string[]): Promis
       winner: null,
       personalWinners: [],
       tomeHolderUid: null,
+      showdown: null,
     })
   } catch (e) {
     throw new Error(`restartGame: updating lobby doc failed - ${e instanceof Error ? e.message : e}`)

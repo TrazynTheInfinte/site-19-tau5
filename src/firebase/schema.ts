@@ -5,7 +5,19 @@ export type LobbyStatus = 'lobby' | 'in_progress' | 'ended'
 // with no voting at all (nobody's died yet, so nothing to vote on anyway). Every other cycle's
 // day is 'discussion' (talk, skippable once everyone's ready) followed by 'voting' (cast votes).
 // 'overtime' skips discussion entirely - it's a forced, no-abstain, sudden-death vote only.
-export type GamePhase = 'lobby' | 'briefing' | 'night' | 'discussion' | 'voting' | 'overtime' | 'ended'
+// 'showdown' preempts the normal cycle flow entirely - see LobbyDoc.showdown.
+export type GamePhase = 'lobby' | 'briefing' | 'night' | 'discussion' | 'voting' | 'overtime' | 'showdown' | 'ended'
+
+/** Live state for the Enforcer-vs-last-CI Showdown minigame (see CONTEXT.md). chamberPosition
+ * is rolled once, up front, and safe to read publicly - no player action affects who it lands
+ * on, so nothing is lost by making the pull history/outcome visible to every spectator live. */
+export interface ShowdownState {
+  participantUids: [string, string]
+  turnUid: string
+  pulls: number
+  chamberPosition: number
+  loserUid: string | null
+}
 
 export interface LobbyDoc {
   code: string
@@ -23,6 +35,8 @@ export interface LobbyDoc {
   /** Chaos Insurgency's shared Tome: whoever holds it may kill as their night action regardless
    * of role, and reads as Foundation to investigation. Null if no CI is in this game's role pool. */
   tomeHolderUid: string | null
+  /** Set only while phase === 'showdown'; null otherwise (including before it's ever happened). */
+  showdown: ShowdownState | null
   createdAt: number
 }
 
@@ -95,7 +109,17 @@ export interface PublicCycleLogDoc {
   cycle: number
   eliminatedUid: string | null
   tie: boolean
-  causeOfDeath: 'vote' | 'kill' | null
+  causeOfDeath: 'vote' | 'kill' | 'showdown' | null
+}
+
+/** One trigger-pull in the Showdown minigame. Doc id == `{cycle}_{pullNumber}`, pullNumber
+ * starting at 1 - the strictly-increasing id (rather than one doc per actor) is what lets the
+ * host resolver detect "a new pull happened" with a simple count comparison. */
+export interface ShowdownPullDoc {
+  cycle: number
+  actorUid: string
+  pullNumber: number
+  submittedAt: number
 }
 
 export interface GhostTipDoc {

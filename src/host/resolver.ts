@@ -6,6 +6,7 @@ import { tallyVotes } from '../game/voting'
 import { isOvertimeReached, resolveOvertimeVote } from '../game/overtime'
 import { checkFactionWin, checkPersonalWins, checkSeedWins, checkSurviveToEndWins } from '../game/winConditions'
 import { nightAbilityFor } from '../game/nightActionAbilities'
+import { checkShowdownTrigger, rollChamberPosition } from '../game/showdown'
 import { DISCUSSION_DURATION_MS, VOTING_DURATION_MS } from '../game/constants'
 import { seedTargetCount } from '../game/types'
 import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
@@ -15,6 +16,7 @@ import {
   getAllSecretRoles,
   getNightActions,
   getPuppeteerOverride,
+  getShowdownPulls,
   getVotes,
   jamGun,
   markSaboteurUsed,
@@ -168,6 +170,64 @@ async function endGame(
   await guardedAdvance(lobbyId, expectedPhase, expectedCycle, { phase: 'ended', status: 'ended', winner })
 }
 
+/** Called right after any elimination (a night kill or a vote, including overtime's). If
+ * exactly the Enforcer and the last living CI member remain, breaks into the Showdown minigame
+ * instead of letting the caller advance to its normal next phase. Returns true if it did -
+ * callers must return immediately without doing their own normal-path advance in that case. */
+async function tryEnterShowdown(
+  lobbyId: string,
+  expectedPhase: string,
+  expectedCycle: number,
+  finalStates: PlayerState[],
+  roles: RoleAssignments,
+): Promise<boolean> {
+  const pair = checkShowdownTrigger(finalStates, roles)
+  if (!pair) return false
+  await guardedAdvance(lobbyId, expectedPhase, expectedCycle, {
+    phase: 'showdown',
+    showdown: {
+      participantUids: [pair.enforcerUid, pair.ciUid],
+      turnUid: pair.enforcerUid,
+      pulls: 0,
+      chamberPosition: rollChamberPosition(),
+      loserUid: null,
+    },
+  })
+  return true
+}
+
+/** Resolves exactly one Showdown trigger-pull: either it was fatal (eliminate the current
+ * turn-holder, run the normal end-of-elimination bookkeeping, and end the game - guaranteed a
+ * winner, since exactly one of the two participants remains alive afterward) or it wasn't
+ * (just flip whose turn it is). */
+async function resolveShowdownPull(lobbyId: string, lobby: LobbyDoc, roles: RoleAssignments, players: PlayerWithId[]) {
+  const state = lobby.showdown
+  if (!state) return
+  const nextPulls = state.pulls + 1
+
+  if (nextPulls !== state.chamberPosition) {
+    const otherUid = state.participantUids.find((u) => u !== state.turnUid)!
+    await updateDoc(doc(db, 'lobbies', lobbyId), { 'showdown.pulls': nextPulls, 'showdown.turnUid': otherUid })
+    return
+  }
+
+  const loserUid = state.turnUid
+  await eliminatePlayer(lobbyId, loserUid, lobby.cycle)
+  await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, loserUid, roles, players)
+  await clearSenseTargetsOnDeath(lobbyId, roles, loserUid)
+
+  const finalStates = toPlayerStates(players, loserUid)
+  const event: EliminationEvent = { uid: loserUid, cause: 'showdown', cycle: lobby.cycle }
+  const wins = [...checkPersonalWins(event, roles), ...checkSeedWins(finalStates, roles)]
+  await addPersonalWinners(lobbyId, wins.map((w) => w.uid))
+
+  await writePublicCycleLog(lobbyId, { cycle: lobby.cycle, eliminatedUid: loserUid, tie: false, causeOfDeath: 'showdown' })
+  await updateDoc(doc(db, 'lobbies', lobbyId), { 'showdown.pulls': nextPulls, 'showdown.loserUid': loserUid })
+
+  const winner = checkFactionWin(finalStates, roles)
+  if (winner) await endGame(lobbyId, 'showdown', lobby.cycle, winner, finalStates, roles)
+}
+
 /** Whisperer's passive sense result for this cycle, if they have a locked (or just-locked)
  * target: who that target visited, and who visited them - computed straight from the raw
  * action list, unaffected by blocks/protection (an all-seeing passive, not a disruptable one). */
@@ -246,6 +306,8 @@ export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, player
   })
 
   const finalStates = toPlayerStates(players, result.eliminatedUid)
+  if (await tryEnterShowdown(lobbyId, 'night', cycle, finalStates, roles)) return
+
   const winner = checkFactionWin(finalStates, roles)
 
   if (winner) {
@@ -317,6 +379,8 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
   })
 
   const finalStates = toPlayerStates(players, tally.eliminatedUid)
+  if (await tryEnterShowdown(lobbyId, lobby.phase, lobby.cycle, finalStates, roles)) return
+
   const winner = checkFactionWin(finalStates, roles)
 
   if (winner) {
@@ -452,6 +516,37 @@ export function useHostResolver(
       clearInterval(interval)
     }
   }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle])
+
+  // Showdown: watches for a new trigger-pull doc and resolves it (fatal or not). Each pull is
+  // its own doc rather than a shared counter so a client's create is a simple self-authorship
+  // check in firestore.rules, matching nightActions/votes - the resolver is still the only
+  // thing that ever decides who dies or advances the phase.
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'showdown' || !lobby.showdown) return
+    let cancelled = false
+
+    const check = async () => {
+      if (resolvingRef.current || cancelled) return
+      const pulls = await getShowdownPulls(lobbyId, lobby.cycle)
+      if (pulls.length <= lobby.showdown!.pulls) return
+      resolvingRef.current = true
+      try {
+        const roles = await getAllSecretRoles(lobbyId)
+        await resolveShowdownPull(lobbyId, lobby, roles, playersRef.current)
+      } catch (e) {
+        console.error('resolveShowdownPull failed', e)
+      } finally {
+        resolvingRef.current = false
+      }
+    }
+
+    const interval = setInterval(check, NIGHT_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.showdown?.pulls])
 
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid) return

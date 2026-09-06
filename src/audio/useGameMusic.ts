@@ -11,6 +11,7 @@ function categoryForPhase(phase: GamePhase): LoopCategory | 'ended' {
   if (phase === 'discussion') return 'discussion'
   // Overtime is a forced, discussion-free vote - it uses voting's loop, not a track of its own.
   if (phase === 'voting' || phase === 'overtime') return 'voting'
+  if (phase === 'showdown') return 'showdown'
   return 'ended'
 }
 

@@ -34,7 +34,7 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 
 **Voting-phase tie vote** — If the elimination vote ties between two or more players, no one is eliminated that cycle (applies to normal cycles; the overtime round's forced vote also results in no elimination on a tie).
 
-**Showdown (planned, not yet implemented)** — A special ending scenario when exactly two players remain alive: the Enforcer and any living Chaos Insurgency member. Intended to break from normal resolution into a dedicated confrontation minigame between just those two, rather than an ordinary night/vote cycle. Only the concept and its music cue exist so far — the minigame itself, and the exact rules for what happens if either side declines or the pair changes before it triggers, are future work.
+**Showdown** — Triggers the instant an elimination (night kill or vote, including overtime's) leaves exactly two players alive: the Enforcer and any living Chaos Insurgency member. Breaks from the normal night/discussion/voting cycle entirely into a one-on-one revolver duel between just those two - six chambers, one bullet, alternating turns pulling the trigger, resolved the moment the fatal pull lands. No player choice affects who dies - the fatal pull is decided the instant the duel starts - so it's shown live to every spectator, not just the two participants. The loser's elimination is a normal one (role/will reveal, checked against The Marked) but doesn't count as a vote for The Fool's purposes. Ends the game immediately: with only one of the two left alive, a faction win is always decided by the normal win conditions.
 
 ## Role list
 
