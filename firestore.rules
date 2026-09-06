@@ -125,9 +125,14 @@ service cloud.firestore {
         allow create: if request.auth.uid == request.resource.data.fromUid &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'night';
+        // exists() guard is required, not just belt-and-suspenders: a restart wipes secretRoles
+        // as part of the same reset pass that clears whispers, and .data on a get() of an
+        // already-deleted doc is a rules evaluation error (surfaces to the client as "Missing
+        // or insufficient permissions"), not a clean false - regardless of deletion order.
         allow read: if request.auth.uid == resource.data.fromUid ||
           request.auth.uid == resource.data.toUid ||
-          get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.role == 'whisperer';
+          (exists(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.role == 'whisperer');
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
     }
