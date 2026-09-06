@@ -42,6 +42,13 @@ export interface SecretRoleDoc {
   markedTargetUid: string | null
   saboteurUsed: boolean
   specialUsed: boolean
+  /** Enforcer only. */
+  bulletsLoaded: number
+  gunJammed: boolean
+  /** Whisperer only. */
+  senseTargetUid: string | null
+  /** Cultivator only. */
+  seededUids: string[]
 }
 
 export interface NightActionDoc {
@@ -59,6 +66,7 @@ export interface NightResultDoc {
   payload:
     | { type: 'investigate'; targetUid: string; targetFaction: Faction }
     | { type: 'track'; targetUid: string; acted: boolean }
+    | { type: 'sense'; targetUid: string; visited: string | null; visitedBy: string[] }
 }
 
 /** A Puppeteer's once-per-game secret vote override: `targetVoterUid`'s vote is counted as
@@ -103,6 +111,25 @@ export interface WillDoc {
 export interface TomeTransferDoc {
   toUid: string
   requestedAt: number
+}
+
+/** Public in-app day chat - anyone can read; only living players can post (dead players'
+ * only sanctioned channel stays the anonymous ghost tip). Phase-gated to non-night. */
+export interface DayChatDoc {
+  authorUid: string
+  cycle: number
+  message: string
+  sentAt: number
+}
+
+/** A private message to one other player. Readable by the two participants, plus anyone
+ * whose role is Whisperer (their passive power is hearing every whisper's content). */
+export interface WhisperDoc {
+  fromUid: string
+  toUid: string
+  cycle: number
+  message: string
+  sentAt: number
 }
 
 /** Composite doc id helper for per-cycle-per-actor collections (nightActions, nightResults, votes). */

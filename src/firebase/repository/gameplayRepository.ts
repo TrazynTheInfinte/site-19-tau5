@@ -1,4 +1,6 @@
 import {
+  addDoc,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -14,6 +16,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config'
 import type {
+  DayChatDoc,
   GhostTipDoc,
   NightActionDoc,
   NightResultDoc,
@@ -22,6 +25,7 @@ import type {
   SecretRoleDoc,
   TomeTransferDoc,
   VoteDoc,
+  WhisperDoc,
   WillDoc,
 } from '../schema'
 import { cycleDocId } from '../schema'
@@ -41,6 +45,8 @@ const GAMEPLAY_COLLECTIONS = [
   'wills',
   'puppeteerOverrides',
   'tomeTransfers',
+  'dayChat',
+  'whispers',
 ] as const
 
 /** Host-only: wipes all of a completed game's per-cycle/per-role data so a restart doesn't
@@ -67,6 +73,10 @@ export async function writeSecretRoles(lobbyId: string, assignments: RoleAssignm
       markedTargetUid: assignment.markedTargetUid,
       saboteurUsed: assignment.saboteurUsed,
       specialUsed: assignment.specialUsed,
+      bulletsLoaded: assignment.bulletsLoaded,
+      gunJammed: assignment.gunJammed,
+      senseTargetUid: assignment.senseTargetUid,
+      seededUids: assignment.seededUids,
     }
     batch.set(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), roleDoc)
   }
@@ -112,6 +122,26 @@ export async function markSaboteurUsed(lobbyId: string, uid: string): Promise<vo
 /** Marks the generic once-per-game ability used (Warden's Execute, Anomaly, Puppeteer, Cartographer). */
 export async function markSpecialUsed(lobbyId: string, uid: string): Promise<void> {
   await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { specialUsed: true })
+}
+
+/** Enforcer only. */
+export async function setBulletsLoaded(lobbyId: string, uid: string, bulletsLoaded: number): Promise<void> {
+  await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { bulletsLoaded })
+}
+
+/** Enforcer only: fires forever once they've killed a Foundation member. */
+export async function jamGun(lobbyId: string, uid: string): Promise<void> {
+  await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { gunJammed: true, bulletsLoaded: 0 })
+}
+
+/** Whisperer only: locks in (or clears, on the target's death) who they're sensing. */
+export async function setSenseTarget(lobbyId: string, uid: string, targetUid: string | null): Promise<void> {
+  await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { senseTargetUid: targetUid })
+}
+
+/** Cultivator only. */
+export async function addSeedTarget(lobbyId: string, uid: string, targetUid: string): Promise<void> {
+  await updateDoc(doc(db, 'lobbies', lobbyId, 'secretRoles', uid), { seededUids: arrayUnion(targetUid) })
 }
 
 // ---- nightActions (host-only read; each player writes only their own) ----
@@ -267,4 +297,30 @@ export async function consumeTomeTransfer(lobbyId: string, holderUid: string): P
   const data = snap.data() as TomeTransferDoc
   await deleteDoc(ref)
   return data
+}
+
+// ---- dayChat (public, phase-gated to non-night; only living players post) ----
+
+export async function sendDayChatMessage(lobbyId: string, msg: Omit<DayChatDoc, 'sentAt'>): Promise<void> {
+  await addDoc(col(lobbyId, 'dayChat'), { ...msg, sentAt: Date.now() } satisfies DayChatDoc)
+}
+
+export function subscribeDayChat(lobbyId: string, cb: (messages: DayChatDoc[]) => void): Unsubscribe {
+  return onSnapshot(col(lobbyId, 'dayChat'), (snap) =>
+    cb(snap.docs.map((d) => d.data() as DayChatDoc).sort((a, b) => a.sentAt - b.sentAt)),
+  )
+}
+
+// ---- whispers (private between two players; also fully readable by the Whisperer - enforced
+// in firestore.rules, not here, so this same subscription naturally shows everyone's whispers
+// to a Whisperer and only the viewer's own to everyone else) ----
+
+export async function sendWhisper(lobbyId: string, msg: Omit<WhisperDoc, 'sentAt'>): Promise<void> {
+  await addDoc(col(lobbyId, 'whispers'), { ...msg, sentAt: Date.now() } satisfies WhisperDoc)
+}
+
+export function subscribeMyWhispers(lobbyId: string, cb: (whispers: WhisperDoc[]) => void): Unsubscribe {
+  return onSnapshot(col(lobbyId, 'whispers'), (snap) =>
+    cb(snap.docs.map((d) => d.data() as WhisperDoc).sort((a, b) => a.sentAt - b.sentAt)),
+  )
 }

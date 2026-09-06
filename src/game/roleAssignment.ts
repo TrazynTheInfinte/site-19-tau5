@@ -83,6 +83,10 @@ export function assignRoles(playerUids: string[], enabledRoles: RoleId[], rng: R
       markedTargetUid: null,
       saboteurUsed: false,
       specialUsed: false,
+      bulletsLoaded: 0,
+      gunJammed: false,
+      senseTargetUid: null,
+      seededUids: [],
     })
   })
 

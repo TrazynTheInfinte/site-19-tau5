@@ -61,6 +61,19 @@ export default function SecretRoleCard() {
           {teammates.map((t) => `${nameFor(t.uid)} (${ROLE_DEFINITIONS[t.role].name})`).join(', ')}
         </p>
       )}
+      {myRole.role === 'enforcer' && (
+        <p className="faint">
+          {myRole.gunJammed ? 'Your weapon is jammed - no more loading or shooting.' : `Bullets loaded: ${myRole.bulletsLoaded}/2`}
+        </p>
+      )}
+      {myRole.role === 'whisperer' && myRole.senseTargetUid && (
+        <p className="faint">Currently sensing: {nameFor(myRole.senseTargetUid)}</p>
+      )}
+      {myRole.role === 'cultivator' && (
+        <p className="faint">
+          Seeded: {myRole.seededUids.length > 0 ? myRole.seededUids.map(nameFor).join(', ') : 'no one yet'}
+        </p>
+      )}
       {myNightResult?.payload.type === 'investigate' && (
         <p>
           Last night's investigation: target is <strong>{myNightResult.payload.targetFaction}</strong>.
@@ -69,6 +82,15 @@ export default function SecretRoleCard() {
       {myNightResult?.payload.type === 'track' && (
         <p>
           Last night's tracking: target {myNightResult.payload.acted ? 'took an action' : 'did not act'}.
+        </p>
+      )}
+      {myNightResult?.payload.type === 'sense' && (
+        <p>
+          Last night's sensing: {myNightResult.payload.visited ? `visited ${nameFor(myNightResult.payload.visited)}` : 'visited no one'};{' '}
+          {myNightResult.payload.visitedBy.length > 0
+            ? `visited by ${myNightResult.payload.visitedBy.map(nameFor).join(', ')}`
+            : 'visited by no one'}
+          .
         </p>
       )}
     </div>

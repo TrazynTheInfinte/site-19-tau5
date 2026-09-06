@@ -4,24 +4,29 @@ import { db } from '../firebase/config'
 import { resolveNight } from '../game/nightResolution'
 import { tallyVotes } from '../game/voting'
 import { isOvertimeReached, resolveOvertimeVote } from '../game/overtime'
-import { checkFactionWin, checkPersonalWins, checkSurviveToEndWins } from '../game/winConditions'
+import { checkFactionWin, checkPersonalWins, checkSeedWins, checkSurviveToEndWins } from '../game/winConditions'
 import { nightAbilityFor } from '../game/nightActionAbilities'
 import { DAY_PHASE_DURATION_MS } from '../game/constants'
+import { seedTargetCount } from '../game/types'
 import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
 import {
+  addSeedTarget,
   consumeTomeTransfer,
   getAllSecretRoles,
   getNightActions,
   getPuppeteerOverride,
   getVotes,
+  jamGun,
   markSaboteurUsed,
   markSpecialUsed,
+  setBulletsLoaded,
+  setSenseTarget,
   writeNightResults,
   writePublicCycleLog,
 } from '../firebase/repository/gameplayRepository'
 import type { LobbyDoc } from '../firebase/schema'
 import type { PlayerWithId } from '../context/LobbyContext'
-import type { EliminationEvent, PlayerState, RoleAssignments } from '../game/types'
+import type { EliminationEvent, NightAction, PlayerState, RoleAssignments } from '../game/types'
 
 const SPECIAL_ONCE_ACTION_TYPES = ['execute', 'trueKill', 'cartographerSwap'] as const
 
@@ -43,6 +48,7 @@ function requiredNightActorUids(
       const assignment = roles.get(p.uid)
       if (!assignment) return false
       if (assignment.role === 'saboteur' && assignment.saboteurUsed) return false
+      if (assignment.role === 'enforcer' && assignment.gunJammed) return false
       if (nightAbilityFor(assignment.role) !== null) return true
       // A CI role with no innate ability (Infiltrator) is still required to act if it's
       // currently the Tome holder - killing is the Tome's privilege now, not a role ability.
@@ -90,6 +96,63 @@ async function reassignTomeIfHolderDied(
   await updateDoc(doc(db, 'lobbies', lobbyId), { tomeHolderUid: newHolder })
 }
 
+/** Enforcer: consumes a bullet on any submitted kill (whether or not it lands - matches the
+ * real mechanic where firing uses ammo regardless of outcome), and gains one on Load, capped
+ * at 2. Whisperer: locks in a sense target the first time they submit 'sense' (a no-op on
+ * later nights, since their target then persists automatically). Cultivator: records a new
+ * seed target, capped at seedTargetCount(playerCount). */
+async function applyPerRoleBookkeeping(
+  lobbyId: string,
+  actions: NightAction[],
+  roles: RoleAssignments,
+  totalPlayers: number,
+) {
+  const requiredSeeds = seedTargetCount(totalPlayers)
+  for (const action of actions) {
+    const assignment = roles.get(action.actorUid)
+    if (!assignment) continue
+
+    if (assignment.role === 'enforcer') {
+      if (action.actionType === 'load') {
+        await setBulletsLoaded(lobbyId, action.actorUid, Math.min(2, assignment.bulletsLoaded + 1))
+      } else if (action.actionType === 'kill') {
+        await setBulletsLoaded(lobbyId, action.actorUid, Math.max(0, assignment.bulletsLoaded - 1))
+      }
+    } else if (assignment.role === 'whisperer' && action.actionType === 'sense' && !assignment.senseTargetUid) {
+      await setSenseTarget(lobbyId, action.actorUid, action.targetUid)
+    } else if (
+      assignment.role === 'cultivator' &&
+      action.actionType === 'seed' &&
+      !assignment.seededUids.includes(action.targetUid) &&
+      assignment.seededUids.length < requiredSeeds
+    ) {
+      await addSeedTarget(lobbyId, action.actorUid, action.targetUid)
+    }
+  }
+}
+
+/** If an Enforcer's kill this cycle connected and the target was Foundation, their weapon
+ * jams for the rest of the game - no more loading or shooting. */
+async function jamEnforcerIfFriendlyKill(lobbyId: string, actions: NightAction[], roles: RoleAssignments, eliminatedUid: string) {
+  const killAction = actions.find((a) => a.actionType === 'kill' && a.targetUid === eliminatedUid)
+  if (!killAction) return
+  const shooter = roles.get(killAction.actorUid)
+  if (shooter?.role !== 'enforcer') return
+  if (roles.get(eliminatedUid)?.faction === 'foundation') {
+    await jamGun(lobbyId, killAction.actorUid)
+  }
+}
+
+/** Any Whisperer sensing the just-eliminated player (by any cause) has their target cleared,
+ * so they can pick a new one on a future night. */
+async function clearSenseTargetsOnDeath(lobbyId: string, roles: RoleAssignments, eliminatedUid: string) {
+  for (const assignment of roles.values()) {
+    if (assignment.role === 'whisperer' && assignment.senseTargetUid === eliminatedUid) {
+      await setSenseTarget(lobbyId, assignment.uid, null)
+    }
+  }
+}
+
 /** Shared by every game-ending path (night kill wins it, day vote wins it, overtime draws):
  * records any Puppeteer/Cartographer survive-to-end wins alongside the main outcome. */
 async function endGame(
@@ -105,19 +168,43 @@ async function endGame(
   await guardedAdvance(lobbyId, expectedPhase, expectedCycle, { phase: 'ended', status: 'ended', winner })
 }
 
+/** Whisperer's passive sense result for this cycle, if they have a locked (or just-locked)
+ * target: who that target visited, and who visited them - computed straight from the raw
+ * action list, unaffected by blocks/protection (an all-seeing passive, not a disruptable one). */
+function computeSenseResults(actions: NightAction[], roles: RoleAssignments) {
+  const results: { recipientUid: string; targetUid: string; visited: string | null; visitedBy: string[] }[] = []
+  for (const assignment of roles.values()) {
+    if (assignment.role !== 'whisperer') continue
+    const lockAction = actions.find((a) => a.actorUid === assignment.uid && a.actionType === 'sense')
+    const senseTarget = assignment.senseTargetUid ?? lockAction?.targetUid ?? null
+    if (!senseTarget) continue
+    const visited = actions.find((a) => a.actorUid === senseTarget && a.actionType !== 'sense')?.targetUid ?? null
+    const visitedBy = actions
+      .filter((a) => a.targetUid === senseTarget && a.actionType !== 'sense')
+      .map((a) => a.actorUid)
+    results.push({ recipientUid: assignment.uid, targetUid: senseTarget, visited, visitedBy })
+  }
+  return results
+}
+
 /** Exported for the Dr. Bright dev panel's "force resolve night now" testing shortcut. */
 export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[]) {
   const cycle = lobby.cycle
   const roles = await getAllSecretRoles(lobbyId)
   const actions = await getNightActions(lobbyId, cycle)
   const result = resolveNight(actions, roles, lobby.tomeHolderUid)
+  const senseResults = computeSenseResults(actions, roles)
+
+  await applyPerRoleBookkeeping(lobbyId, actions, roles, players.length)
 
   if (result.eliminatedUid) {
     await eliminatePlayer(lobbyId, result.eliminatedUid, cycle)
     await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, result.eliminatedUid, roles, players)
+    await jamEnforcerIfFriendlyKill(lobbyId, actions, roles, result.eliminatedUid)
+    await clearSenseTargetsOnDeath(lobbyId, roles, result.eliminatedUid)
 
     const event: EliminationEvent = { uid: result.eliminatedUid, cause: 'kill', cycle }
-    const wins = checkPersonalWins(event, roles)
+    const wins = [...checkPersonalWins(event, roles), ...checkSeedWins(toPlayerStates(players, result.eliminatedUid), roles)]
     await addPersonalWinners(lobbyId, wins.map((w) => w.uid))
   }
 
@@ -140,6 +227,11 @@ export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, player
       cycle,
       recipientUid: r.actorUid,
       payload: { type: 'track' as const, targetUid: r.targetUid, acted: r.acted },
+    })),
+    ...senseResults.map((r) => ({
+      cycle,
+      recipientUid: r.recipientUid,
+      payload: { type: 'sense' as const, targetUid: r.targetUid, visited: r.visited, visitedBy: r.visitedBy },
     })),
   ]
   if (resultDocs.length > 0) {
@@ -199,9 +291,13 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
   if (tally.eliminatedUid) {
     await eliminatePlayer(lobbyId, tally.eliminatedUid, lobby.cycle)
     await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, tally.eliminatedUid, roles, players)
+    await clearSenseTargetsOnDeath(lobbyId, roles, tally.eliminatedUid)
 
     const event: EliminationEvent = { uid: tally.eliminatedUid, cause: 'vote', cycle: lobby.cycle }
-    const wins = checkPersonalWins(event, roles)
+    const wins = [
+      ...checkPersonalWins(event, roles),
+      ...checkSeedWins(toPlayerStates(players, tally.eliminatedUid), roles),
+    ]
     await addPersonalWinners(lobbyId, wins.map((w) => w.uid))
   }
 

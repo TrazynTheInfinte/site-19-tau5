@@ -12,6 +12,11 @@ import type { NightActionType, RoleId } from './types'
  * holder's privilege now, for every CI role including Infiltrator. requiredNightActorUids
  * separately treats the current Tome holder as required to act even when their role alone
  * returns null here.
+ *
+ * Enforcer always returns 'load' as the representative required type even though they may
+ * submit 'kill' instead once they have a bullet loaded - same pattern as Warden. Whisperer
+ * and Cultivator return null (optional, like Anomaly/Cartographer): neither is required to
+ * act every night even before their one-time setup is complete.
  */
 export function nightAbilityFor(role: RoleId): NightActionType | null {
   switch (role) {
@@ -27,6 +32,8 @@ export function nightAbilityFor(role: RoleId): NightActionType | null {
       return 'detain'
     case 'framer':
       return 'frame'
+    case 'enforcer':
+      return 'load'
     default:
       return null
   }

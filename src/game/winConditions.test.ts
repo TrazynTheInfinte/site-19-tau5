@@ -1,44 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { checkFactionWin, checkPersonalWins, checkSurviveToEndWins } from './winConditions'
+import { checkFactionWin, checkPersonalWins, checkSeedWins, checkSurviveToEndWins } from './winConditions'
+import { makeRole } from './testRoleHelpers'
 import type { PlayerState, RoleAssignments } from './types'
 
 function makePlayers(uids: string[], deadUids: string[] = []): PlayerState[] {
   return uids.map((uid) => ({ uid, displayName: uid, alive: !deadUids.includes(uid), eliminatedCycle: null }))
 }
 
-const roles: RoleAssignments = new Map([
-  ['f1', { uid: 'f1', role: 'agent', faction: 'foundation', markedTargetUid: null, saboteurUsed: false, specialUsed: false }],
+const roles: RoleAssignments = new Map(
   [
-    'f2',
-    { uid: 'f2', role: 'researcher', faction: 'foundation', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
-  ],
-  [
-    'ci1',
-    { uid: 'ci1', role: 'infiltrator', faction: 'ci', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
-  ],
-  [
-    'sh1',
-    {
-      uid: 'sh1',
-      role: 'theFool',
-      faction: 'serpentsHand',
-      markedTargetUid: null,
-      saboteurUsed: false,
-      specialUsed: false,
-    },
-  ],
-  [
-    'sh2',
-    {
-      uid: 'sh2',
-      role: 'theMarked',
-      faction: 'serpentsHand',
-      markedTargetUid: 'f1',
-      saboteurUsed: false,
-      specialUsed: false,
-    },
-  ],
-])
+    makeRole('f1', 'agent'),
+    makeRole('f2', 'researcher'),
+    makeRole('ci1', 'infiltrator'),
+    makeRole('sh1', 'theFool'),
+    makeRole('sh2', 'theMarked', { markedTargetUid: 'f1' }),
+  ].map((r) => [r.uid, r]),
+)
 
 describe('checkFactionWin', () => {
   it('Foundation wins once all CI are eliminated', () => {
@@ -91,28 +68,8 @@ describe('checkPersonalWins', () => {
 describe('checkSurviveToEndWins', () => {
   const survivorRoles: RoleAssignments = new Map([
     ...roles,
-    [
-      'sh3',
-      {
-        uid: 'sh3',
-        role: 'puppeteer',
-        faction: 'serpentsHand',
-        markedTargetUid: null,
-        saboteurUsed: false,
-        specialUsed: false,
-      },
-    ],
-    [
-      'sh4',
-      {
-        uid: 'sh4',
-        role: 'cartographer',
-        faction: 'serpentsHand',
-        markedTargetUid: null,
-        saboteurUsed: false,
-        specialUsed: false,
-      },
-    ],
+    ['sh3', makeRole('sh3', 'puppeteer')],
+    ['sh4', makeRole('sh4', 'cartographer')],
   ])
 
   it('Puppeteer and Cartographer win if still alive when the game ends', () => {
@@ -126,5 +83,28 @@ describe('checkSurviveToEndWins', () => {
   it('does not win if eliminated before the game ends', () => {
     const players = makePlayers(['f1', 'sh3', 'sh4'], ['sh3'])
     expect(checkSurviveToEndWins(players, survivorRoles)).toEqual([{ uid: 'sh4', role: 'cartographer' }])
+  })
+})
+
+describe('checkSeedWins', () => {
+  const cultivatorRoles: RoleAssignments = new Map([
+    ...roles,
+    ['sh5', makeRole('sh5', 'cultivator', { seededUids: ['f1', 'f2'] })],
+  ])
+
+  it('wins once every seeded player is eliminated', () => {
+    const players = makePlayers(['f1', 'f2', 'ci1', 'sh5'], ['f1', 'f2'])
+    expect(checkSeedWins(players, cultivatorRoles)).toEqual([{ uid: 'sh5', role: 'cultivator' }])
+  })
+
+  it('does not win while any seeded player is still alive', () => {
+    const players = makePlayers(['f1', 'f2', 'ci1', 'sh5'], ['f1'])
+    expect(checkSeedWins(players, cultivatorRoles)).toEqual([])
+  })
+
+  it('does not win before the seed set is fully assigned', () => {
+    const partial: RoleAssignments = new Map([...roles, ['sh6', makeRole('sh6', 'cultivator', { seededUids: ['f1'] })]])
+    const players = makePlayers(['f1', 'f2', 'ci1', 'sh6'], ['f1'])
+    expect(checkSeedWins(players, partial)).toEqual([])
   })
 })

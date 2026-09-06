@@ -1,63 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { resolveNight } from './nightResolution'
-import type { NightAction, RoleAssignment, RoleAssignments } from './types'
+import { makeRole } from './testRoleHelpers'
+import type { NightAction, RoleAssignments } from './types'
 
-const roleEntries: RoleAssignment[] = [
-  { uid: 'agent1', role: 'agent', faction: 'foundation', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
-  {
-    uid: 'researcher1',
-    role: 'researcher',
-    faction: 'foundation',
-    markedTargetUid: null,
-    saboteurUsed: false,
-    specialUsed: false,
-  },
-  {
-    uid: 'medic1',
-    role: 'medicalOfficer',
-    faction: 'foundation',
-    markedTargetUid: null,
-    saboteurUsed: false,
-    specialUsed: false,
-  },
-  {
-    uid: 'tracker1',
-    role: 'tracker',
-    faction: 'foundation',
-    markedTargetUid: null,
-    saboteurUsed: false,
-    specialUsed: false,
-  },
-  {
-    uid: 'warden1',
-    role: 'warden',
-    faction: 'foundation',
-    markedTargetUid: null,
-    saboteurUsed: false,
-    specialUsed: false,
-  },
-  {
-    uid: 'infiltrator1',
-    role: 'infiltrator',
-    faction: 'ci',
-    markedTargetUid: null,
-    saboteurUsed: false,
-    specialUsed: false,
-  },
-  { uid: 'saboteur1', role: 'saboteur', faction: 'ci', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
-  { uid: 'framer1', role: 'framer', faction: 'ci', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
-  { uid: 'anomaly1', role: 'anomaly', faction: 'ci', markedTargetUid: null, saboteurUsed: false, specialUsed: false },
-  {
-    uid: 'cartographer1',
-    role: 'cartographer',
-    faction: 'serpentsHand',
-    markedTargetUid: null,
-    saboteurUsed: false,
-    specialUsed: false,
-  },
-]
-
-const baseRoles: RoleAssignments = new Map(roleEntries.map((r) => [r.uid, r]))
+const baseRoles: RoleAssignments = new Map(
+  [
+    makeRole('agent1', 'agent'),
+    makeRole('researcher1', 'researcher'),
+    makeRole('medic1', 'medicalOfficer'),
+    makeRole('tracker1', 'tracker'),
+    makeRole('warden1', 'warden'),
+    makeRole('infiltrator1', 'infiltrator'),
+    makeRole('saboteur1', 'saboteur'),
+    makeRole('framer1', 'framer'),
+    makeRole('anomaly1', 'anomaly'),
+    makeRole('cartographer1', 'cartographer'),
+  ].map((r) => [r.uid, r]),
+)
 
 describe('resolveNight', () => {
   it('kills the target when nobody protects or blocks', () => {

@@ -15,6 +15,8 @@ import Notepad from '../components/game/Notepad'
 import AbilityLog from '../components/game/AbilityLog'
 import PuppeteerControl from '../components/game/PuppeteerControl'
 import TomeControl from '../components/game/TomeControl'
+import DayChatPanel from '../components/game/DayChatPanel'
+import WhisperPanel from '../components/game/WhisperPanel'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
 
 export default function GameRoute() {
@@ -56,6 +58,12 @@ export default function GameRoute() {
               <DayPhaseView />
               <PuppeteerControl />
               <TomeControl />
+            </>
+          )}
+          {lobby.phase !== 'night' && (
+            <>
+              <DayChatPanel />
+              <WhisperPanel />
             </>
           )}
           {!me?.alive && <GhostTipComposer />}

@@ -4,7 +4,7 @@ import { useLobby, type PlayerWithId } from '../../context/LobbyContext'
 import { useGameState } from '../../context/GameStateContext'
 import { getAllSecretRoles, submitNightAction } from '../../firebase/repository/gameplayRepository'
 import { nightAbilityFor } from '../../game/nightActionAbilities'
-import type { NightActionType } from '../../game/types'
+import { seedTargetCount, type NightActionType } from '../../game/types'
 
 const ACTION_LABEL: Record<NightActionType, string> = {
   investigate: 'Investigate',
@@ -17,6 +17,9 @@ const ACTION_LABEL: Record<NightActionType, string> = {
   frame: 'Frame',
   trueKill: 'Strike',
   cartographerSwap: 'Swap',
+  load: 'Load',
+  sense: 'Sense',
+  seed: 'Seed',
 }
 
 function TargetSelect({
@@ -65,6 +68,7 @@ export default function NightPhaseView() {
   const [targetUid, setTargetUid] = useState('')
   const [secondaryTargetUid, setSecondaryTargetUid] = useState('')
   const [wardenExecute, setWardenExecute] = useState(false)
+  const [enforcerShoot, setEnforcerShoot] = useState(false)
   const [useTome, setUseTome] = useState(false)
   const [ciTeammateUids, setCiTeammateUids] = useState<Set<string>>(new Set())
   const [submitted, setSubmitted] = useState(false)
@@ -75,6 +79,7 @@ export default function NightPhaseView() {
     setTargetUid('')
     setSecondaryTargetUid('')
     setWardenExecute(false)
+    setEnforcerShoot(false)
     setUseTome(false)
   }, [lobby?.cycle])
 
@@ -173,6 +178,102 @@ export default function NightPhaseView() {
             </button>
           </>
         )}
+        {error && <p className="error-text">{error}</p>}
+      </div>
+    )
+  }
+
+  // --- Enforcer: Load (repeatable, capped at 2) or Shoot (blockable kill, consumes a
+  // bullet, can't shoot Night 1) - jammed forever after killing a Foundation member ---
+  if (myRole.role === 'enforcer') {
+    if (myRole.gunJammed) return <NoActionCard />
+    const canShoot = myRole.bulletsLoaded > 0 && lobby.cycle > 1
+    const maxedOut = myRole.bulletsLoaded >= 2
+    return (
+      <div className="card">
+        <h2>Night phase</h2>
+        <p>
+          {enforcerShoot
+            ? 'Shoot who? (a normal, blockable kill - consumes a bullet either way)'
+            : `Load your weapon (${myRole.bulletsLoaded}/2 loaded)`}
+        </p>
+        {enforcerShoot && <TargetSelect targets={others} value={targetUid} onChange={setTargetUid} />}
+        {canShoot && (
+          <label style={{ marginLeft: '0.5rem' }}>
+            <input type="checkbox" checked={enforcerShoot} onChange={(e) => setEnforcerShoot(e.target.checked)} />{' '}
+            Shoot instead
+          </label>
+        )}
+        <button
+          disabled={enforcerShoot ? !targetUid : maxedOut}
+          onClick={() => submit(enforcerShoot ? 'kill' : 'load', enforcerShoot ? targetUid : uid)}
+          style={{ marginLeft: '0.5rem' }}
+        >
+          Submit
+        </button>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+    )
+  }
+
+  // --- Whisperer: locks in a sense target once, then passively receives results every night
+  // (no further action needed) until that target dies ---
+  if (myRole.role === 'whisperer') {
+    if (myRole.senseTargetUid) {
+      const targetName = players.find((p) => p.uid === myRole.senseTargetUid)?.displayName ?? 'your target'
+      return (
+        <div className="card">
+          <h2>Night phase</h2>
+          <p>Currently sensing {targetName}. No action needed — results arrive automatically each night.</p>
+        </div>
+      )
+    }
+    return (
+      <div className="card">
+        <h2>Night phase</h2>
+        <p>Choose someone to sense (locks in until they die):</p>
+        <TargetSelect targets={others} value={targetUid} onChange={setTargetUid} />
+        <button disabled={!targetUid} onClick={() => submit('sense', targetUid)} style={{ marginLeft: '0.5rem' }}>
+          Sense
+        </button>
+        <p style={{ fontSize: '0.85em', opacity: 0.7 }}>You may also skip this and choose later.</p>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+    )
+  }
+
+  // --- Cultivator: spreads the seed until the target count is reached, then hunts the seeded ---
+  if (myRole.role === 'cultivator') {
+    const requiredSeeds = seedTargetCount(players.length)
+    const seedFull = myRole.seededUids.length >= requiredSeeds
+    if (!seedFull) {
+      const seedTargets = others.filter((p) => !myRole.seededUids.includes(p.uid))
+      if (seedTargets.length === 0) return <NoActionCard />
+      return (
+        <div className="card">
+          <h2>Night phase</h2>
+          <p>
+            Spread the seed to a target ({myRole.seededUids.length}/{requiredSeeds} seeded so far):
+          </p>
+          <TargetSelect targets={seedTargets} value={targetUid} onChange={setTargetUid} />
+          <button disabled={!targetUid} onClick={() => submit('seed', targetUid)} style={{ marginLeft: '0.5rem' }}>
+            Seed
+          </button>
+          <p style={{ fontSize: '0.85em', opacity: 0.7 }}>You may also skip this and seed someone else later.</p>
+          {error && <p className="error-text">{error}</p>}
+        </div>
+      )
+    }
+    const huntTargets = others.filter((p) => myRole.seededUids.includes(p.uid))
+    if (huntTargets.length === 0) return <NoActionCard />
+    return (
+      <div className="card">
+        <h2>Night phase</h2>
+        <p>Hunt one of your seeded targets (a normal, blockable kill):</p>
+        <TargetSelect targets={huntTargets} value={targetUid} onChange={setTargetUid} />
+        <button disabled={!targetUid} onClick={() => submit('kill', targetUid)} style={{ marginLeft: '0.5rem' }}>
+          Kill
+        </button>
         {error && <p className="error-text">{error}</p>}
       </div>
     )

@@ -8,6 +8,7 @@ import type { Faction } from '../../game/types'
 const ABILITY_LABEL: Record<NightResultDoc['payload']['type'], string> = {
   investigate: 'Investigate',
   track: 'Track',
+  sense: 'Sense',
 }
 
 const FACTION_LABEL: Record<Faction, string> = {
@@ -16,8 +17,12 @@ const FACTION_LABEL: Record<Faction, string> = {
   serpentsHand: "Serpent's Hand",
 }
 
-function resultText(payload: NightResultDoc['payload']): string {
-  return payload.type === 'investigate' ? FACTION_LABEL[payload.targetFaction] : payload.acted ? 'Acted' : 'No action'
+function resultText(payload: NightResultDoc['payload'], nameFor: (uid: string) => string): string {
+  if (payload.type === 'investigate') return FACTION_LABEL[payload.targetFaction]
+  if (payload.type === 'track') return payload.acted ? 'Acted' : 'No action'
+  const visited = payload.visited ? `visited ${nameFor(payload.visited)}` : 'visited no one'
+  const visitedBy = payload.visitedBy.length > 0 ? `visited by ${payload.visitedBy.map(nameFor).join(', ')}` : 'visited by no one'
+  return `${visited}; ${visitedBy}`
 }
 
 /** Auto-populated, read-only record of every ability result this player has received -
@@ -44,7 +49,7 @@ export default function AbilityLog() {
         {results.map((r) => (
           <li key={r.cycle} style={{ padding: '0.2rem 0' }}>
             Night {r.cycle}: {ABILITY_LABEL[r.payload.type]} — {nameFor(r.payload.targetUid)} —{' '}
-            <strong>{resultText(r.payload)}</strong>
+            <strong>{resultText(r.payload, nameFor)}</strong>
           </li>
         ))}
       </ul>

@@ -1,7 +1,7 @@
 export default function SiteFooter() {
   return (
     <p className="faint" style={{ textAlign: 'center', marginTop: 'var(--space-3)', flexShrink: 0 }}>
-      Role/faction icons by Lorc, Delapouite &amp; Dark Zaitzev via{' '}
+      Role/faction icons by Lorc, Delapouite, Dark Zaitzev &amp; Skoll via{' '}
       <a href="https://game-icons.net" target="_blank" rel="noreferrer">
         game-icons.net
       </a>

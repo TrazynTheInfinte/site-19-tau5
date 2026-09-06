@@ -1,4 +1,12 @@
-import { SURVIVE_TO_END_ROLES, type EliminationEvent, type FactionWinner, type PersonalWin, type PlayerState, type RoleAssignments } from './types'
+import {
+  SURVIVE_TO_END_ROLES,
+  seedTargetCount,
+  type EliminationEvent,
+  type FactionWinner,
+  type PersonalWin,
+  type PlayerState,
+  type RoleAssignments,
+} from './types'
 
 /**
  * Per ADR-0001: Foundation wins when all CI are eliminated. CI wins when living CI count
@@ -51,5 +59,27 @@ export function checkSurviveToEndWins(players: PlayerState[], roles: RoleAssignm
       wins.push({ uid: player.uid, role: assignment.role })
     }
   }
+  return wins
+}
+
+/**
+ * The Cultivator wins once every player they've seeded is eliminated - but only once their
+ * full seed set is assigned (seedTargetCount(playerCount), scaled down from Town of Salem's
+ * fixed 3 for our smaller lobbies). Checked after every elimination, same as Fool/Marked,
+ * since any of the seeded players dying (by vote, night kill, or anyone else's hand) can
+ * complete it - not just the Cultivator's own hunt.
+ */
+export function checkSeedWins(players: PlayerState[], roles: RoleAssignments): PersonalWin[] {
+  const wins: PersonalWin[] = []
+  const requiredCount = seedTargetCount(players.length)
+  const aliveByUid = new Map(players.map((p) => [p.uid, p.alive]))
+
+  for (const assignment of roles.values()) {
+    if (assignment.role !== 'cultivator') continue
+    if (assignment.seededUids.length < requiredCount) continue
+    const allSeededDead = assignment.seededUids.every((uid) => aliveByUid.get(uid) === false)
+    if (allSeededDead) wins.push({ uid: assignment.uid, role: 'cultivator' })
+  }
+
   return wins
 }

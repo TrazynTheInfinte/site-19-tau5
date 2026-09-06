@@ -1,4 +1,4 @@
-// Icons by Lorc, Delapouite, and Dark Zaitzev via game-icons.net, licensed CC BY 3.0
+// Icons by Lorc, Delapouite, Dark Zaitzev, and Skoll via game-icons.net, licensed CC BY 3.0
 // (https://creativecommons.org/licenses/by/3.0/). See the credit line in the site footer.
 
 import foundationIcon from '../assets/icons/foundation.svg?raw'
@@ -10,14 +10,17 @@ import researcherIcon from '../assets/icons/researcher.svg?raw'
 import medicalOfficerIcon from '../assets/icons/medicalOfficer.svg?raw'
 import trackerIcon from '../assets/icons/tracker.svg?raw'
 import wardenIcon from '../assets/icons/warden.svg?raw'
+import enforcerIcon from '../assets/icons/enforcer.svg?raw'
 import infiltratorIcon from '../assets/icons/infiltrator.svg?raw'
 import saboteurIcon from '../assets/icons/saboteur.svg?raw'
 import framerIcon from '../assets/icons/framer.svg?raw'
 import anomalyIcon from '../assets/icons/anomaly.svg?raw'
+import whispererIcon from '../assets/icons/whisperer.svg?raw'
 import theFoolIcon from '../assets/icons/theFool.svg?raw'
 import theMarkedIcon from '../assets/icons/theMarked.svg?raw'
 import puppeteerIcon from '../assets/icons/puppeteer.svg?raw'
 import cartographerIcon from '../assets/icons/cartographer.svg?raw'
+import cultivatorIcon from '../assets/icons/cultivator.svg?raw'
 
 import type { Faction, RoleId } from './types'
 
@@ -33,12 +36,15 @@ export const ROLE_ICONS: Record<RoleId, string> = {
   medicalOfficer: medicalOfficerIcon,
   tracker: trackerIcon,
   warden: wardenIcon,
+  enforcer: enforcerIcon,
   infiltrator: infiltratorIcon,
   saboteur: saboteurIcon,
   framer: framerIcon,
   anomaly: anomalyIcon,
+  whisperer: whispererIcon,
   theFool: theFoolIcon,
   theMarked: theMarkedIcon,
   puppeteer: puppeteerIcon,
   cartographer: cartographerIcon,
+  cultivator: cultivatorIcon,
 }

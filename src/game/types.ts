@@ -6,14 +6,17 @@ export type RoleId =
   | 'medicalOfficer'
   | 'tracker'
   | 'warden'
+  | 'enforcer'
   | 'infiltrator'
   | 'saboteur'
   | 'framer'
   | 'anomaly'
+  | 'whisperer'
   | 'theFool'
   | 'theMarked'
   | 'puppeteer'
   | 'cartographer'
+  | 'cultivator'
 
 export interface RoleDefinition {
   id: RoleId
@@ -27,14 +30,17 @@ export const ROLE_DEFINITIONS: Record<RoleId, RoleDefinition> = {
   medicalOfficer: { id: 'medicalOfficer', faction: 'foundation', name: 'Medical Officer' },
   tracker: { id: 'tracker', faction: 'foundation', name: 'Tracker' },
   warden: { id: 'warden', faction: 'foundation', name: 'Warden' },
+  enforcer: { id: 'enforcer', faction: 'foundation', name: 'Enforcer' },
   infiltrator: { id: 'infiltrator', faction: 'ci', name: 'Infiltrator' },
   saboteur: { id: 'saboteur', faction: 'ci', name: 'Saboteur' },
   framer: { id: 'framer', faction: 'ci', name: 'Framer' },
   anomaly: { id: 'anomaly', faction: 'ci', name: 'Anomaly' },
+  whisperer: { id: 'whisperer', faction: 'ci', name: 'The Whisperer' },
   theFool: { id: 'theFool', faction: 'serpentsHand', name: 'The Fool' },
   theMarked: { id: 'theMarked', faction: 'serpentsHand', name: 'The Marked' },
   puppeteer: { id: 'puppeteer', faction: 'serpentsHand', name: 'The Puppeteer' },
   cartographer: { id: 'cartographer', faction: 'serpentsHand', name: 'The Cartographer' },
+  cultivator: { id: 'cultivator', faction: 'serpentsHand', name: 'The Cultivator' },
 }
 
 export const ALL_ROLE_IDS: RoleId[] = Object.keys(ROLE_DEFINITIONS) as RoleId[]
@@ -60,6 +66,14 @@ export interface RoleAssignment {
   saboteurUsed: boolean
   /** Generic once-per-game flag reused by Warden's Execute, Anomaly, Puppeteer, and Cartographer. */
   specialUsed: boolean
+  /** Enforcer only: bullets currently loaded (0-2). */
+  bulletsLoaded: number
+  /** Enforcer only: true forever once they've shot a Foundation member - no more loading or shooting. */
+  gunJammed: boolean
+  /** Whisperer only: the player they're currently sensing (null until chosen, or after the target dies). */
+  senseTargetUid: string | null
+  /** Cultivator only: living-when-seeded players they've given the seed to, up to seedTargetCount(playerCount). */
+  seededUids: string[]
 }
 
 export type RoleAssignments = Map<string, RoleAssignment>
@@ -75,6 +89,9 @@ export type NightActionType =
   | 'frame'
   | 'trueKill'
   | 'cartographerSwap'
+  | 'load'
+  | 'sense'
+  | 'seed'
 
 export interface NightAction {
   cycle: number
@@ -100,7 +117,17 @@ export interface TrackResult {
   acted: boolean
 }
 
-export type NightResultPayload = InvestigateResult | TrackResult
+export interface SenseResult {
+  type: 'sense'
+  actorUid: string
+  targetUid: string
+  /** Who the sensed target visited this cycle, if anyone. */
+  visited: string | null
+  /** Who visited the sensed target this cycle. */
+  visitedBy: string[]
+}
+
+export type NightResultPayload = InvestigateResult | TrackResult | SenseResult
 
 export interface NightResolutionResult {
   eliminatedUid: string | null
@@ -136,3 +163,9 @@ export interface PersonalWin {
 }
 
 export type FactionWinner = 'foundation' | 'ci' | null
+
+/** How many players the Cultivator must seed before they can start hunting them - scaled down
+ * from Town of Salem's fixed 3 for our smaller lobbies. */
+export function seedTargetCount(totalPlayers: number): number {
+  return totalPlayers <= 5 ? 2 : 3
+}

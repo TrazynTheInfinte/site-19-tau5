@@ -108,6 +108,28 @@ service cloud.firestore {
         allow create: if request.auth.uid == uid;
         allow read, delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
+
+      match /dayChat/{msgId} {
+        // Only living players post (dead players' one sanctioned channel stays the anonymous
+        // ghost tip); no chat during the night, matching every other "night is silent" convention.
+        allow create: if request.auth.uid == request.resource.data.authorUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'night';
+        allow read: if request.auth != null;
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /whispers/{whisperId} {
+        // Also readable in full by the Whisperer - their passive power is hearing every
+        // whisper's content, not just ones addressed to them.
+        allow create: if request.auth.uid == request.resource.data.fromUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'night';
+        allow read: if request.auth.uid == resource.data.fromUid ||
+          request.auth.uid == resource.data.toUid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.role == 'whisperer';
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
     }
   }
 }

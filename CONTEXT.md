@@ -38,18 +38,21 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 - *Medical Officer* — each night, protect one player from elimination.
 - *Tracker* — each night, learns only whether a target submitted any night action at all — not what, not their faction.
 - *Warden* — each night, detains a target: blocks their action and protects them from elimination, simultaneously. Once per game, may instead Execute the detained target — an unblockable kill (scaled down from Town of Salem's Jailer, which also gets a free kill on top of the jail, for this game's smaller player counts).
+- *Enforcer* — each night, either Load (up to 2 loaded) or Shoot a loaded target with a normal, blockable kill; can't shoot Night 1. If the shot connects and the target is Foundation, the weapon jams forever — no more loading or shooting. Adapted from Town of Salem's Vigilante, scaled from 3 bullets down to 2 for this game's smaller player counts and shorter cycle budget.
 
 **Chaos Insurgency:**
 - *Infiltrator* — no innate night ability. Killing is exclusively the Tome's privilege (see below), for every CI role including Infiltrator — Infiltrator's distinction is simply that it starts the game holding the Tome.
 - *Saboteur* — once per game, blocks another player's night ability instead of the normal CI kill.
 - *Framer* — each night, makes a target appear as Chaos Insurgency to any Researcher investigation that same night.
 - *Anomaly* — once per game (not the first night), strikes a target with an unblockable kill; cannot target another Chaos Insurgency member. Adapted from Town of Salem's Conjurer, which does this during the day and stays anonymous — here it's a night action instead (reuses the existing resolution machinery rather than needing a whole separate day-action pathway), and anonymity is already free since nobody learns who killed whom anyway.
+- *The Whisperer* — each night, choose a target to sense: you learn who they visit and who visits them, every night, until that target dies (at which point you may sense someone new). You also passively hear the content of every whisper sent during the day, lobby-wide, not just ones addressed to you. Adapted from Town of Salem's Wildling, with its "sense Coven teammates while not holding the Necronomicon" clause dropped entirely — redundant here since CI already has full mutual visibility, and the Tome already lets any holder kill.
 
 **Serpent's Hand (neutral, special-condition roles):**
 - *The Fool* (formerly "Jester") — wins if voted out by the Foundation during a day-phase vote.
 - *The Marked* (formerly "Executioner") — assigned a secret Foundation target at game start; wins if that target is voted out/terminated.
 - *The Puppeteer* — once per game, secretly forces another living player's vote to count for a target of the Puppeteer's choosing; the victim's own vote is never altered or shown differently to them, so they never find out. Wins by surviving to the end of the game.
 - *The Cartographer* — once per game, silently swaps the night-action targets of two other players (neither is told). Wins by surviving to the end of the game.
+- *The Cultivator* — each night, may spread the seed to a living player, up to a small number scaled to the lobby size (2 at 5 players or fewer, 3 above that). Once every seed is placed, they instead hunt the seeded down — a normal, blockable kill, targeting only the seeded. Wins once every seeded player is eliminated, by anyone's hand, not just their own. Adapted from Town of Salem's Baker/Famine, dropping the full role-transformation subsystem (no separate "Famine" role, no countdown-per-recipient) in favor of a single personal-win condition shaped like every other Serpent's Hand role — the real Baker's fixed target of 3 is scaled down and made lobby-size-aware for the same reason as the Enforcer's bullet count.
 
 Ghost anonymous tips are free-text, sent anonymously to all living players, once per remaining cycle — no structural constraints on content for MVP.
 
@@ -70,6 +73,8 @@ Ghost anonymous tips are free-text, sent anonymously to all living players, once
 **Reconnection** — A disconnected player can rejoin the same lobby via its code and resume their role/state from persisted game state.
 
 **Will** — A short freeform note a living player can write and revise at any time, visible only to themself. The instant they're eliminated (by any cause — vote, night kill, or forfeit), their will locks (can no longer be edited) and becomes visible to everyone. A forfeit still reveals a will, unlike the personal-win exclusion above — revealing isn't a reward or a trigger, just what happens to whatever was written.
+
+**Chat and whispers** — An in-app text layer alongside whatever voice/Discord discussion is already happening: a public day chat everyone can read (only living players can post — a ghost's one sanctioned channel stays the anonymous tip), and private whispers to one other player at a time. Both are only available outside the night phase, matching "night is silent." Whispers are private between the two participants — except to The Whisperer, who passively hears every whisper's content lobby-wide; that's the entire reason this exists as an in-app mechanic rather than staying out-of-band like the rest of discussion.
 
 ## Open questions
 
