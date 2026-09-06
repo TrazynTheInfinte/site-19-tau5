@@ -125,12 +125,20 @@ service cloud.firestore {
         allow create: if request.auth.uid == request.resource.data.fromUid &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'night';
-        // exists() guard is required, not just belt-and-suspenders: a restart wipes secretRoles
-        // as part of the same reset pass that clears whispers, and .data on a get() of an
-        // already-deleted doc is a rules evaluation error (surfaces to the client as "Missing
-        // or insufficient permissions"), not a clean false - regardless of deletion order.
+        // Unlike every sibling collection here (secretRoles, nightActions, wills, etc.), this
+        // rule had no host-bypass clause - the host could only read whispers it was a party to,
+        // or if it happened to be the Whisperer. Firestore denies an entire unfiltered list
+        // query outright unless every possible result is readable by the caller, so
+        // resetGameplayData's getDocs() on this collection failed as soon as any whisper
+        // existed that the host wasn't part of. The host already has equivalent full-visibility
+        // access to secretRoles/nightActions/etc. by design (see file header) - withholding it
+        // here was an inconsistency, not a deliberately tighter model.
+        // exists() guard is also required on its own: a restart wipes secretRoles as part of the
+        // same reset pass that clears whispers, and .data on a get() of an already-deleted doc
+        // is a rules evaluation error ("Missing or insufficient permissions"), not a clean false.
         allow read: if request.auth.uid == resource.data.fromUid ||
           request.auth.uid == resource.data.toUid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
           (exists(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)) &&
            get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.role == 'whisperer');
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
