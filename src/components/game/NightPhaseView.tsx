@@ -217,26 +217,41 @@ export default function NightPhaseView() {
   }
 
   // --- Whisperer: locks in a sense target once, then passively receives results every night
-  // (no further action needed) until that target dies ---
+  // (no further action needed) until that target dies. Also checks holdsTome like every other
+  // CI role - the Tome auto-transfers to any living CI teammate on the holder's death, so a
+  // Whisperer can end up holding it and must be able to use it to kill. ---
   if (myRole.role === 'whisperer') {
-    if (myRole.senseTargetUid) {
-      const targetName = players.find((p) => p.uid === myRole.senseTargetUid)?.displayName ?? 'your target'
-      return (
-        <div className="card">
-          <h2>Night phase</h2>
-          <p>Currently sensing {targetName}. No action needed — results arrive automatically each night.</p>
-        </div>
-      )
-    }
+    const senseTargetName = myRole.senseTargetUid
+      ? players.find((p) => p.uid === myRole.senseTargetUid)?.displayName ?? 'your target'
+      : null
     return (
       <div className="card">
         <h2>Night phase</h2>
-        <p>Choose someone to sense (locks in until they die):</p>
-        <TargetSelect targets={others} value={targetUid} onChange={setTargetUid} />
-        <button disabled={!targetUid} onClick={() => submit('sense', targetUid)} style={{ marginLeft: '0.5rem' }}>
-          Sense
-        </button>
-        <p style={{ fontSize: '0.85em', opacity: 0.7 }}>You may also skip this and choose later.</p>
+        {senseTargetName ? (
+          <p>Currently sensing {senseTargetName}. No action needed for that — results arrive automatically each night.</p>
+        ) : (
+          <>
+            <p>Choose someone to sense (locks in until they die):</p>
+            <TargetSelect targets={others} value={targetUid} onChange={setTargetUid} />
+            <button disabled={!targetUid} onClick={() => submit('sense', targetUid)} style={{ marginLeft: '0.5rem' }}>
+              Sense
+            </button>
+            <p style={{ fontSize: '0.85em', opacity: 0.7 }}>You may also skip this and choose later.</p>
+          </>
+        )}
+        {holdsTome && (
+          <>
+            <p style={{ marginTop: 'var(--space-2)' }}>Or use the Tome to kill:</p>
+            <TargetSelect targets={others} value={secondaryTargetUid} onChange={setSecondaryTargetUid} />
+            <button
+              disabled={!secondaryTargetUid}
+              onClick={() => submit('kill', secondaryTargetUid)}
+              style={{ marginLeft: '0.5rem' }}
+            >
+              Kill via Tome
+            </button>
+          </>
+        )}
         {error && <p className="error-text">{error}</p>}
       </div>
     )

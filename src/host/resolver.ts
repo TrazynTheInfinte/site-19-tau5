@@ -396,8 +396,15 @@ export function useHostResolver(
       const allSubmitted = required.every((r) => submittedUids.has(r))
       if (allSubmitted && !cancelled) {
         resolvingRef.current = true
-        await resolveNightCycle(lobbyId, lobby, currentPlayers)
-        resolvingRef.current = false
+        try {
+          await resolveNightCycle(lobbyId, lobby, currentPlayers)
+        } catch (e) {
+          // Without this, a thrown error here leaves resolvingRef stuck true forever -
+          // every future poll silently no-ops and the game never advances again.
+          console.error('resolveNightCycle failed', e)
+        } finally {
+          resolvingRef.current = false
+        }
       }
     }
 
@@ -441,8 +448,13 @@ export function useHostResolver(
         if (!allVoted) return
       }
       resolvingRef.current = true
-      await resolveVotePhase(lobbyId, lobby, playersRef.current)
-      resolvingRef.current = false
+      try {
+        await resolveVotePhase(lobbyId, lobby, playersRef.current)
+      } catch (e) {
+        console.error('resolveVotePhase failed', e)
+      } finally {
+        resolvingRef.current = false
+      }
     }
 
     const interval = setInterval(check, DAY_POLL_MS)
