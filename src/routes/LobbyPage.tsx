@@ -11,6 +11,7 @@ import LobbyRoute from './LobbyRoute'
 import GameRoute from './GameRoute'
 import { useGameMusic } from '../audio/useGameMusic'
 import SoundToggle from '../components/audio/SoundToggle'
+import RulesButton from '../components/rules/RulesButton'
 
 const DISPLAY_NAME_KEY = 'site19_display_name'
 
@@ -91,7 +92,10 @@ function LobbyPageInner({ code }: { code: string }) {
 
   return (
     <>
-      <SoundToggle enabled={soundEnabled} onToggle={toggleSound} />
+      <div style={{ position: 'fixed', top: '0.75rem', right: '0.75rem', zIndex: 10, display: 'flex', gap: '0.5rem' }}>
+        <RulesButton />
+        <SoundToggle enabled={soundEnabled} onToggle={toggleSound} />
+      </div>
       {lobby.status === 'lobby' ? (
         <LobbyRoute />
       ) : (

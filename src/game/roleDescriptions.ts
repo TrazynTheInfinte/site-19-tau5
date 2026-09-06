@@ -18,7 +18,7 @@ export const ROLE_DESCRIPTIONS: Record<RoleId, string> = {
     'Once per game (not Night 1), an unblockable kill - cannot target another Chaos Insurgency member.',
   whisperer:
     'Each night, choose a target to sense - you learn who they visit and who visits them, every night, until they die. You also passively see the content of every whisper sent during the day.',
-  theFool: 'Wins if voted out by the Foundation during a day-phase vote.',
+  theFool: 'Wins if voted out by the Foundation during a voting-phase vote.',
   theMarked: 'Assigned a secret Foundation target. Wins if that target is voted out or killed.',
   puppeteer:
     "Once per game, secretly force another living player's vote to count for a target of your choosing - they'll never know. Wins by surviving to the end.",
