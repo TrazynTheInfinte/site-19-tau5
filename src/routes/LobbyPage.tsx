@@ -9,7 +9,7 @@ import { joinLobby, rejoinLobby } from '../firebase/repository/lobbyRepository'
 import { useEffect, useRef } from 'react'
 import LobbyRoute from './LobbyRoute'
 import GameRoute from './GameRoute'
-import { useAmbientAudio } from '../audio/useAmbientAudio'
+import { useGameMusic } from '../audio/useGameMusic'
 import SoundToggle from '../components/audio/SoundToggle'
 
 const DISPLAY_NAME_KEY = 'site19_display_name'
@@ -55,7 +55,7 @@ function JoinLobbyPrompt({ code, uid }: { code: string; uid: string }) {
 function LobbyPageInner({ code }: { code: string }) {
   const { uid, error: authError } = useAuth()
   const { lobby, players, loading, error: lobbyError } = useLobby()
-  const { enabled: soundEnabled, toggle: toggleSound } = useAmbientAudio(lobby?.phase ?? null)
+  const { enabled: soundEnabled, toggle: toggleSound } = useGameMusic(code, uid, lobby)
 
   usePlayerPresence(code, uid)
   useHostHeartbeat(code, uid, lobby)

@@ -30,6 +30,8 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 
 **Day-phase tie vote** — If the elimination vote ties between two or more players, no one is eliminated that cycle (applies to normal cycles; the overtime round's forced vote also results in no elimination on a tie).
 
+**Showdown (planned, not yet implemented)** — A special ending scenario when exactly two players remain alive: the Enforcer and any living Chaos Insurgency member. Intended to break from normal resolution into a dedicated confrontation minigame between just those two, rather than an ordinary night/vote cycle. Only the concept and its music cue exist so far — the minigame itself, and the exact rules for what happens if either side declines or the pair changes before it triggers, are future work.
+
 ## Role list
 
 **Foundation:**
