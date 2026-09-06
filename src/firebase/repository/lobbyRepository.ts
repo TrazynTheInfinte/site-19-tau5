@@ -66,6 +66,7 @@ export async function createLobby(hostUid: string, hostDisplayName: string): Pro
     isHost: true,
     eliminatedCycle: null,
     briefingReady: false,
+    discussionReady: false,
   }
   await setDoc(playerDocRef(code, hostUid), player)
 
@@ -85,6 +86,7 @@ export async function joinLobby(code: string, uid: string, displayName: string):
     isHost: false,
     eliminatedCycle: null,
     briefingReady: false,
+    discussionReady: false,
   }
   await setDoc(playerDocRef(code, uid), player, { merge: true })
 }
@@ -124,6 +126,10 @@ export async function setPlayerConnected(lobbyId: string, uid: string, connected
 
 export async function setBriefingReady(lobbyId: string, uid: string, ready: boolean): Promise<void> {
   await updateDoc(playerDocRef(lobbyId, uid), { briefingReady: ready })
+}
+
+export async function setDiscussionReady(lobbyId: string, uid: string, ready: boolean): Promise<void> {
+  await updateDoc(playerDocRef(lobbyId, uid), { discussionReady: ready })
 }
 
 /** Pre-game only: host removes the player entirely. Just setting connected:false didn't

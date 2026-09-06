@@ -1,9 +1,11 @@
 import type { RoleId, Faction, NightActionType } from '../game/types'
 
 export type LobbyStatus = 'lobby' | 'in_progress' | 'ended'
-// 'briefing' is cycle 0: an opening talk-only day before Night 1 - timed like a normal day,
-// but with no voting at all (nobody's died yet, so nothing to vote on anyway).
-export type GamePhase = 'lobby' | 'briefing' | 'night' | 'day' | 'overtime' | 'ended'
+// 'briefing' is cycle 0: an opening talk-only day before Night 1 - timed like discussion, but
+// with no voting at all (nobody's died yet, so nothing to vote on anyway). Every other cycle's
+// day is 'discussion' (talk, skippable once everyone's ready) followed by 'voting' (cast votes).
+// 'overtime' skips discussion entirely - it's a forced, no-abstain, sudden-death vote only.
+export type GamePhase = 'lobby' | 'briefing' | 'night' | 'discussion' | 'voting' | 'overtime' | 'ended'
 
 export interface LobbyDoc {
   code: string
@@ -13,7 +15,7 @@ export interface LobbyDoc {
   phase: GamePhase
   cycle: number
   cycleCap: number
-  phaseDeadline: number | null // epoch ms; set for day phase's hard timer, null for night's soft timer
+  phaseDeadline: number | null // epoch ms; set for briefing/discussion/voting's hard timer, null for night's soft timer
   rolePoolSelection: RoleId[]
   winner: 'foundation' | 'ci' | 'draw' | null
   /** uids of Serpent's Hand players who've independently met their personal win condition; doesn't end the game. */
@@ -32,8 +34,11 @@ export interface PlayerDoc {
   isHost: boolean
   eliminatedCycle: number | null
   /** Clicked "ready" during the briefing (cycle 0) - lets the briefing end early once everyone has,
-   * same early-exit pattern as the day phase's "everyone's voted" check. Reset false at game start. */
+   * same early-exit pattern as the voting phase's "everyone's voted" check. Reset false at game start. */
   briefingReady: boolean
+  /** Same idea as briefingReady, but for the discussion phase every other cycle - reset false at
+   * the start of each new discussion, not just once at game start. */
+  discussionReady: boolean
 }
 
 export interface SecretRoleDoc {

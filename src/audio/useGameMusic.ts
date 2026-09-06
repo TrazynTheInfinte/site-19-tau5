@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MusicManager } from './musicManager'
-import { EXECUTION_TRACK, REVEAL_TRACKS, VOTE_RESULT_TRACK, WIN_TRACKS, loopCategoryTracks, randomPick } from './tracks'
+import { EXECUTION_TRACK, REVEAL_TRACKS, WIN_TRACKS, loopCategoryTracks, randomPick } from './tracks'
 import { subscribeMySecretRole, subscribePublicCycleLog } from '../firebase/repository/gameplayRepository'
 import type { GamePhase, LobbyDoc, SecretRoleDoc } from '../firebase/schema'
 import type { LoopCategory } from './tracks'
@@ -8,16 +8,18 @@ import type { LoopCategory } from './tracks'
 function categoryForPhase(phase: GamePhase): LoopCategory | 'ended' {
   if (phase === 'lobby' || phase === 'briefing') return 'lobby'
   if (phase === 'night') return 'night'
-  if (phase === 'day' || phase === 'overtime') return 'day'
+  if (phase === 'discussion') return 'discussion'
+  // Overtime is a forced, discussion-free vote - it uses voting's loop, not a track of its own.
+  if (phase === 'voting' || phase === 'overtime') return 'voting'
   return 'ended'
 }
 
 /**
  * Owns one MusicManager for the component's lifetime, driving it from three independent
  * signals: the lobby's phase (looping ambient + the role-reveal transition), the player's own
- * secret role (needed for the reveal cue's faction), and the public cycle log (vote-result /
- * execution one-shots). `toggle` must be called directly from a button's onClick - same
- * user-gesture requirement the old procedural engine had.
+ * secret role (needed for the reveal cue's faction), and the public cycle log (the execution
+ * one-shot). `toggle` must be called directly from a button's onClick - same user-gesture
+ * requirement the old procedural engine had.
  */
 export function useGameMusic(lobbyId: string | null, uid: string | null, lobby: LobbyDoc | null) {
   const managerRef = useRef<MusicManager | null>(null)
@@ -54,9 +56,9 @@ export function useGameMusic(lobbyId: string | null, uid: string | null, lobby: 
     })
   }, [lobbyId, uid])
 
-  // Vote-result / execution one-shots, keyed off newly-added publicCycleLog entries only - the
-  // initial snapshot (which can contain a whole finished game's history for a fresh page load)
-  // is used just to set the high-water mark, never to fire cues for the past.
+  // Execution one-shot, keyed off newly-added publicCycleLog entries only - the initial
+  // snapshot (which can contain a whole finished game's history for a fresh page load) is used
+  // just to set the high-water mark, never to fire cues for the past.
   useEffect(() => {
     if (!lobbyId) return
     return subscribePublicCycleLog(lobbyId, (entries) => {
@@ -69,11 +71,9 @@ export function useGameMusic(lobbyId: string | null, uid: string | null, lobby: 
       for (const entry of newEntries) {
         if (entry.causeOfDeath === 'vote' && entry.eliminatedUid) {
           managerRef.current?.playOneShot(EXECUTION_TRACK)
-        } else if (entry.tie || entry.causeOfDeath === 'vote') {
-          managerRef.current?.playOneShot(VOTE_RESULT_TRACK)
         }
-        // Night kills (causeOfDeath 'kill') and no-action nights get no cue - matches the
-        // game's existing "night is silent" theme.
+        // A tie is already fully represented by the voting loop continuing uninterrupted, and
+        // night kills (causeOfDeath 'kill') get no cue - matches "night is silent."
       }
       if (entries.length > 0) {
         lastSeenCycleRef.current = Math.max(lastSeenCycleRef.current, ...entries.map((e) => e.cycle))

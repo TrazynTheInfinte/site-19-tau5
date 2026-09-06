@@ -6,12 +6,15 @@ function musicUrl(folder: string, file: string): string {
   return `/music/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`
 }
 
-export type LoopCategory = 'lobby' | 'night' | 'day'
+export type LoopCategory = 'lobby' | 'night' | 'discussion' | 'voting'
 
 const LOOP_TRACKS: Record<LoopCategory, string[]> = {
   lobby: [musicUrl('lobby', 'Containment Protocol.mp3'), musicUrl('lobby', 'Containment Wing.mp3')],
   night: [musicUrl('night', 'Black Salt Drift.mp3')],
-  day: [musicUrl('day', 'Clockroom.mp3')],
+  discussion: [musicUrl('day', 'Clockroom.mp3')],
+  // Was a one-shot "vote resolved" sting; now the voting phase's own ambient loop for its full
+  // 60s, since voting is a dedicated timed phase rather than folded into a combined day phase.
+  voting: [musicUrl('voting', 'Ashes of Verdict.mp3')],
 }
 
 export function loopCategoryTracks(category: LoopCategory): string[] {
@@ -22,11 +25,10 @@ export function randomPick(list: string[]): string {
   return list[Math.floor(Math.random() * list.length)]
 }
 
-/** Fires whenever a day/overtime vote resolves with no elimination (a tie). */
-export const VOTE_RESULT_TRACK = musicUrl('voting', 'Ashes of Verdict.mp3')
-
-/** Fires whenever a day/overtime vote resolves WITH an elimination. Night kills get no cue -
- * matches the game's existing "night is silent" theme (see CONTEXT.md's chat/whisper gating). */
+/** Fires whenever a voting-phase (or overtime) vote resolves WITH an elimination. Night kills
+ * and vote ties get no cue - matches the game's existing "night is silent" theme (see
+ * CONTEXT.md's chat/whisper gating), and a tie is already fully represented by the voting
+ * loop just continuing uninterrupted. */
 export const EXECUTION_TRACK = musicUrl('execution', 'Bell After Impact.mp3')
 
 /** Fires once per player, per game, the moment they first see their own role (not on death -

@@ -21,8 +21,9 @@ export default function HostDevPanel() {
     await resolveNightCycle(lobbyId!, lobby!, players)
   }
 
-  async function forceExpireDayTimer() {
-    if (lobby!.phase !== 'day' && lobby!.phase !== 'overtime' && lobby!.phase !== 'briefing') return
+  async function forceExpireTimer() {
+    const phase = lobby!.phase
+    if (phase !== 'discussion' && phase !== 'voting' && phase !== 'overtime' && phase !== 'briefing') return
     await updateLobby(lobbyId!, { phaseDeadline: Date.now() - 1 })
   }
 
@@ -31,7 +32,7 @@ export default function HostDevPanel() {
       <h3>[Dr. Bright dev panel]</h3>
       <button onClick={revealAllRoles}>Reveal all roles</button>{' '}
       <button onClick={forceResolveNight}>Force resolve night now</button>{' '}
-      <button onClick={forceExpireDayTimer}>Force expire day/briefing/overtime timer</button>
+      <button onClick={forceExpireTimer}>Force expire discussion/voting/briefing/overtime timer</button>
 
       {roles && (
         <ul>

@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { doc, runTransaction, updateDoc } from 'firebase/firestore'
+import { doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { resolveNight } from '../game/nightResolution'
 import { tallyVotes } from '../game/voting'
 import { isOvertimeReached, resolveOvertimeVote } from '../game/overtime'
 import { checkFactionWin, checkPersonalWins, checkSeedWins, checkSurviveToEndWins } from '../game/winConditions'
 import { nightAbilityFor } from '../game/nightActionAbilities'
-import { DAY_PHASE_DURATION_MS } from '../game/constants'
+import { DISCUSSION_DURATION_MS, VOTING_DURATION_MS } from '../game/constants'
 import { seedTargetCount } from '../game/types'
 import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
 import {
@@ -253,9 +253,17 @@ export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, player
     return
   }
 
+  // Fresh discussionReady for the new cycle - unlike briefingReady (reset once at game start),
+  // this has to be rearmed every time a discussion phase begins.
+  const readyResetBatch = writeBatch(db)
+  for (const p of players) {
+    readyResetBatch.update(doc(db, 'lobbies', lobbyId, 'players', p.uid), { discussionReady: false })
+  }
+  await readyResetBatch.commit()
+
   await guardedAdvance(lobbyId, 'night', cycle, {
-    phase: 'day',
-    phaseDeadline: Date.now() + DAY_PHASE_DURATION_MS,
+    phase: 'discussion',
+    phaseDeadline: Date.now() + DISCUSSION_DURATION_MS,
   })
 }
 
@@ -323,13 +331,14 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
 
   const nextCycle = lobby.cycle + 1
   if (isOvertimeReached(nextCycle, lobby.cycleCap)) {
-    await guardedAdvance(lobbyId, 'day', lobby.cycle, {
+    // Overtime skips discussion entirely - straight from voting into the next (forced) vote.
+    await guardedAdvance(lobbyId, 'voting', lobby.cycle, {
       phase: 'overtime',
       cycle: nextCycle,
-      phaseDeadline: Date.now() + DAY_PHASE_DURATION_MS,
+      phaseDeadline: Date.now() + VOTING_DURATION_MS,
     })
   } else {
-    await guardedAdvance(lobbyId, 'day', lobby.cycle, {
+    await guardedAdvance(lobbyId, 'voting', lobby.cycle, {
       phase: 'night',
       cycle: nextCycle,
       phaseDeadline: null,
@@ -355,11 +364,10 @@ export function useHostResolver(
     playersRef.current = players
   }, [players])
 
-  // Briefing (cycle 0): a talk-only opening day - ends on whichever comes first, the 1-minute
-  // timer or everyone clicking ready (same early-exit pattern as the day phase's "everyone's
-  // voted" check) - then goes straight to Night 1. No vote tally, no win check (nobody can be
-  // eliminated before anyone's even acted), no Tome hand-off (nothing to hand off from before
-  // Night 1 assigns it).
+  // Briefing (cycle 0): a talk-only opening phase - ends on whichever comes first, the 1-minute
+  // timer or everyone clicking ready (same early-exit pattern the discussion phase uses) - then
+  // goes straight to Night 1. No vote tally, no win check (nobody can be eliminated before
+  // anyone's even acted), no Tome hand-off (nothing to hand off from before Night 1 assigns it).
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'briefing') return
     let cancelled = false
@@ -381,6 +389,35 @@ export function useHostResolver(
       clearInterval(interval)
     }
   }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.phaseDeadline])
+
+  // Discussion (every cycle after Night 1's first cycle): talk-only, same early-exit shape as
+  // briefing - the 1-minute timer, or everyone clicking ready - then straight into voting. No
+  // vote tally here at all, just the phase hand-off.
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'discussion') return
+    let cancelled = false
+
+    const check = async () => {
+      if (resolvingRef.current || cancelled) return
+      const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
+      const living = playersRef.current.filter((p) => p.alive)
+      const allReady = living.length > 0 && living.every((p) => p.discussionReady)
+      if (!timerExpired && !allReady) return
+      resolvingRef.current = true
+      await guardedAdvance(lobbyId, 'discussion', lobby.cycle, {
+        phase: 'voting',
+        phaseDeadline: Date.now() + VOTING_DURATION_MS,
+      })
+      resolvingRef.current = false
+    }
+
+    const interval = setInterval(check, DAY_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline])
 
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'night') return
@@ -418,13 +455,13 @@ export function useHostResolver(
 
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid) return
-    if (lobby.phase !== 'day' && lobby.phase !== 'overtime') return
+    if (lobby.phase !== 'voting' && lobby.phase !== 'overtime') return
     let cancelled = false
 
     const check = async () => {
       if (cancelled) return
       // Applying a pending Tome transfer runs independently of vote resolution/timers - a
-      // hand-off can happen any time during the day, not just at the moment the day ends.
+      // hand-off can happen any time during voting, not just at the moment voting ends.
       if (lobby.tomeHolderUid) {
         const transfer = await consumeTomeTransfer(lobbyId, lobby.tomeHolderUid)
         if (transfer) {

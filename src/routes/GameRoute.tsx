@@ -3,7 +3,8 @@ import { useLobby } from '../context/LobbyContext'
 import SecretRoleCard from '../components/game/SecretRoleCard'
 import BriefingView from '../components/game/BriefingView'
 import NightPhaseView from '../components/game/NightPhaseView'
-import DayPhaseView from '../components/game/DayPhaseView'
+import DiscussionView from '../components/game/DiscussionView'
+import VotingPhaseView from '../components/game/VotingPhaseView'
 import GhostTipComposer from '../components/game/GhostTipComposer'
 import GhostTipFeed from '../components/game/GhostTipFeed'
 import CycleLog from '../components/game/CycleLog'
@@ -53,9 +54,10 @@ export default function GameRoute() {
         <div className="game-shell__main">
           {lobby.phase === 'briefing' && <BriefingView />}
           {lobby.phase === 'night' && <NightPhaseView />}
-          {(lobby.phase === 'day' || lobby.phase === 'overtime') && (
+          {lobby.phase === 'discussion' && <DiscussionView />}
+          {(lobby.phase === 'voting' || lobby.phase === 'overtime') && (
             <>
-              <DayPhaseView />
+              <VotingPhaseView />
               <PuppeteerControl />
               <TomeControl />
             </>

@@ -4,7 +4,7 @@ import { useLobby } from '../../context/LobbyContext'
 import { useGameState } from '../../context/GameStateContext'
 import { submitVote } from '../../firebase/repository/gameplayRepository'
 
-export default function DayPhaseView() {
+export default function VotingPhaseView() {
   const { uid } = useAuth()
   const { lobby, players } = useLobby()
   const { currentVotes } = useGameState()
@@ -40,7 +40,7 @@ export default function DayPhaseView() {
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 style={{ marginBottom: 0 }}>{isOvertime ? 'Overtime vote' : 'Day phase'}</h2>
+        <h2 style={{ marginBottom: 0 }}>{isOvertime ? 'Overtime vote' : 'Voting'}</h2>
         <span
           style={{
             fontFamily: 'var(--font-display)',
