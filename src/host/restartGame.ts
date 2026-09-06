@@ -8,19 +8,27 @@ import { updateLobby } from '../firebase/repository/lobbyRepository'
 export async function restartGame(lobbyId: string, playerUids: string[]): Promise<void> {
   await resetGameplayData(lobbyId)
 
-  const batch = writeBatch(db)
-  for (const uid of playerUids) {
-    batch.update(doc(db, 'lobbies', lobbyId, 'players', uid), { alive: true, eliminatedCycle: null })
+  try {
+    const batch = writeBatch(db)
+    for (const uid of playerUids) {
+      batch.update(doc(db, 'lobbies', lobbyId, 'players', uid), { alive: true, eliminatedCycle: null })
+    }
+    await batch.commit()
+  } catch (e) {
+    throw new Error(`restartGame: resetting player alive states failed - ${e instanceof Error ? e.message : e}`)
   }
-  await batch.commit()
 
-  await updateLobby(lobbyId, {
-    status: 'lobby',
-    phase: 'lobby',
-    cycle: 0,
-    phaseDeadline: null,
-    winner: null,
-    personalWinners: [],
-    tomeHolderUid: null,
-  })
+  try {
+    await updateLobby(lobbyId, {
+      status: 'lobby',
+      phase: 'lobby',
+      cycle: 0,
+      phaseDeadline: null,
+      winner: null,
+      personalWinners: [],
+      tomeHolderUid: null,
+    })
+  } catch (e) {
+    throw new Error(`restartGame: updating lobby doc failed - ${e instanceof Error ? e.message : e}`)
+  }
 }

@@ -59,11 +59,20 @@ const GAMEPLAY_COLLECTIONS = [
  * look like already-submitted votes for the new game's cycle 1). */
 export async function resetGameplayData(lobbyId: string): Promise<void> {
   for (const name of GAMEPLAY_COLLECTIONS) {
-    const snap = await getDocs(col(lobbyId, name))
+    let snap
+    try {
+      snap = await getDocs(col(lobbyId, name))
+    } catch (e) {
+      throw new Error(`resetGameplayData: read of '${name}' failed - ${e instanceof Error ? e.message : e}`)
+    }
     if (snap.empty) continue
-    const batch = writeBatch(db)
-    snap.docs.forEach((d) => batch.delete(d.ref))
-    await batch.commit()
+    try {
+      const batch = writeBatch(db)
+      snap.docs.forEach((d) => batch.delete(d.ref))
+      await batch.commit()
+    } catch (e) {
+      throw new Error(`resetGameplayData: delete of '${name}' (${snap.size} docs) failed - ${e instanceof Error ? e.message : e}`)
+    }
   }
 }
 
