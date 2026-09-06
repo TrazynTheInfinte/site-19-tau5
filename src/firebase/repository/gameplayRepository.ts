@@ -35,8 +35,12 @@ function col(lobbyId: string, name: string) {
   return collection(db, 'lobbies', lobbyId, name)
 }
 
+// 'secretRoles' must be deleted LAST: the whispers read rule does
+// get(secretRoles/{self}).data.role == 'whisperer' to check the reader's own role, and reading
+// a get()'d document's .data after it's already been deleted is a rules evaluation error (surfaces
+// to the client as "Missing or insufficient permissions") - so every collection whose rules might
+// depend on secretRoles existing has to be cleared while those docs are still there.
 const GAMEPLAY_COLLECTIONS = [
-  'secretRoles',
   'nightActions',
   'nightResults',
   'votes',
@@ -47,6 +51,7 @@ const GAMEPLAY_COLLECTIONS = [
   'tomeTransfers',
   'dayChat',
   'whispers',
+  'secretRoles',
 ] as const
 
 /** Host-only: wipes all of a completed game's per-cycle/per-role data so a restart doesn't
