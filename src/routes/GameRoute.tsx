@@ -6,7 +6,7 @@ import NightPhaseView from '../components/game/NightPhaseView'
 import DiscussionView from '../components/game/DiscussionView'
 import VotingPhaseView from '../components/game/VotingPhaseView'
 import ShowdownView from '../components/game/ShowdownView'
-import GhostTipComposer from '../components/game/GhostTipComposer'
+import GhostBanner from '../components/game/GhostBanner'
 import GhostTipFeed from '../components/game/GhostTipFeed'
 import CycleLog from '../components/game/CycleLog'
 import EndGameView from '../components/game/EndGameView'
@@ -51,6 +51,8 @@ export default function GameRoute() {
         </span>
       </div>
 
+      {!me?.alive && <GhostBanner />}
+
       <div className="game-shell__body">
         <div className="game-shell__main">
           {lobby.phase === 'briefing' && <BriefingView />}
@@ -70,12 +72,14 @@ export default function GameRoute() {
               <WhisperPanel />
             </>
           )}
-          {!me?.alive && <GhostTipComposer />}
           {isDrBright && <HostDevPanel />}
         </div>
 
         <div className="game-shell__sidebar">
-          <SecretRoleCard />
+          <details className="card collapsible" open>
+            <summary>Your role</summary>
+            <SecretRoleCard />
+          </details>
           <PlayerList />
           <GhostTipFeed />
           {me?.alive && (

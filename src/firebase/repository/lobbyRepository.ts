@@ -55,6 +55,7 @@ export async function createLobby(hostUid: string, hostDisplayName: string): Pro
     personalWinners: [],
     tomeHolderUid: null,
     showdown: null,
+    gameNumber: 1,
     createdAt: Date.now(),
   }
   await setDoc(lobbyDocRef(code), lobby)

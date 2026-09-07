@@ -37,8 +37,7 @@ export default function SecretRoleCard() {
   const nameFor = (targetUid: string) => players.find((p) => p.uid === targetUid)?.displayName ?? targetUid
 
   return (
-    <div className="card">
-      <h3>Your role</h3>
+    <>
       <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
         <RoleBadge role={myRole.role} faction={myRole.faction} />
         <div>
@@ -98,6 +97,6 @@ export default function SecretRoleCard() {
           .
         </p>
       )}
-    </div>
+    </>
   )
 }

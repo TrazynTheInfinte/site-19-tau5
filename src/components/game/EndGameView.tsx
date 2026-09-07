@@ -37,7 +37,7 @@ export default function EndGameView() {
     setBusy(true)
     setError(null)
     try {
-      await restartGame(lobbyId!, players.map((p) => p.uid))
+      await restartGame(lobbyId!, players.map((p) => p.uid), lobby!.gameNumber)
     } catch (e) {
       console.error('restartGame failed', e)
       setError(e instanceof Error ? e.message : 'Failed to restart game')

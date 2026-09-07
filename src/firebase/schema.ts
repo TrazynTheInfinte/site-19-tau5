@@ -37,6 +37,11 @@ export interface LobbyDoc {
   tomeHolderUid: string | null
   /** Set only while phase === 'showdown'; null otherwise (including before it's ever happened). */
   showdown: ShowdownState | null
+  /** Starts at 1, incremented on every restart. Client-local state that must not survive a
+   * restart (suspicion guesses, notepad) is keyed by this alongside the lobby code, so a
+   * restart naturally orphans the previous game's values instead of needing an explicit
+   * clear-everyone's-browser step the host has no way to actually perform. */
+  gameNumber: number
   createdAt: number
 }
 

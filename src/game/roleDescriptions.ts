@@ -3,7 +3,8 @@ import type { RoleId } from './types'
 /** Short in-game reference text for each role's power - shown on the player's own role card. */
 export const ROLE_DESCRIPTIONS: Record<RoleId, string> = {
   agent: 'No special ability. Just a vote.',
-  researcher: 'Each night, investigate one player and learn their faction.',
+  researcher:
+    "Each night, investigate one player and learn their faction. Two things can make the result wrong: a Framer can disguise a target as Chaos Insurgency, and whoever currently holds the Tome always reads as Foundation, regardless of their real faction.",
   medicalOfficer: 'Each night, protect one player from elimination.',
   tracker: 'Each night, learn only whether a target took any action - not what, not their faction.',
   warden:

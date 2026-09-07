@@ -1,22 +1,31 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useLobby } from '../../context/LobbyContext'
 import { sendDayChatMessage, subscribeDayChat } from '../../firebase/repository/gameplayRepository'
 import type { DayChatDoc } from '../../firebase/schema'
 
 /** Public in-app chat, alongside whatever voice/Discord discussion is already happening.
- * Only living players can post - ghosts' one sanctioned channel stays the anonymous tip. */
+ * Only living players can post - ghosts' one sanctioned channel stays the anonymous tip.
+ * Runs for the whole game, not just the current cycle (see CONTEXT.md's Chat and whispers
+ * entry) - older cycles stay in the scrollback, marked off by a divider, rather than being
+ * hidden; a restart wipes the whole collection, so nothing carries into a new game. */
 export default function DayChatPanel() {
   const { uid } = useAuth()
   const { lobby, players } = useLobby()
   const [messages, setMessages] = useState<DayChatDoc[]>([])
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!lobby) return
     return subscribeDayChat(lobby.code, setMessages)
   }, [lobby])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages])
 
   if (!lobby || !uid) return null
   const me = players.find((p) => p.uid === uid)
@@ -35,12 +44,19 @@ export default function DayChatPanel() {
   return (
     <div className="card">
       <h3>Chat</h3>
-      <div style={{ maxHeight: '180px', overflowY: 'auto', marginBottom: 'var(--space-2)' }}>
+      <div ref={scrollRef} style={{ maxHeight: '180px', overflowY: 'auto', marginBottom: 'var(--space-2)' }}>
         {messages.length === 0 && <p className="faint">No messages yet.</p>}
         {messages.map((m, i) => (
-          <p key={i} style={{ margin: '0.2rem 0' }}>
-            <strong>{nameFor(m.authorUid)}:</strong> {m.message}
-          </p>
+          <div key={i}>
+            {(i === 0 || messages[i - 1].cycle !== m.cycle) && (
+              <p className="faint" style={{ textAlign: 'center', margin: '0.4rem 0', fontSize: '0.75rem' }}>
+                — Cycle {m.cycle} —
+              </p>
+            )}
+            <p style={{ margin: '0.2rem 0' }}>
+              <strong>{nameFor(m.authorUid)}:</strong> {m.message}
+            </p>
+          </div>
         ))}
       </div>
       {me?.alive ? (

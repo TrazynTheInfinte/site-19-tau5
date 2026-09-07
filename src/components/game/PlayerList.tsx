@@ -48,14 +48,20 @@ function RevealedRole({ lobbyId, uid }: { lobbyId: string; uid: string }) {
 
 function SuspicionSelect({
   lobbyCode,
+  gameNumber,
   viewerUid,
   targetUid,
 }: {
   lobbyCode: string
+  gameNumber: number
   viewerUid: string
   targetUid: string
 }) {
-  const [value, setValue] = useState<Suspicion>(() => getSuspicion(lobbyCode, viewerUid, targetUid))
+  const [value, setValue] = useState<Suspicion>(() => getSuspicion(lobbyCode, gameNumber, viewerUid, targetUid))
+
+  useEffect(() => {
+    setValue(getSuspicion(lobbyCode, gameNumber, viewerUid, targetUid))
+  }, [lobbyCode, gameNumber, viewerUid, targetUid])
 
   return (
     <select
@@ -63,7 +69,7 @@ function SuspicionSelect({
       onChange={(e) => {
         const next = e.target.value as Suspicion
         setValue(next)
-        setSuspicion(lobbyCode, viewerUid, targetUid, next)
+        setSuspicion(lobbyCode, gameNumber, viewerUid, targetUid, next)
       }}
       style={{ marginLeft: '0.5rem' }}
     >
@@ -141,7 +147,9 @@ export default function PlayerList() {
                 ({ROLE_DEFINITIONS[ciTeammateRoles.get(p.uid)!].name})
               </span>
             ) : (
-              p.uid !== uid && <SuspicionSelect lobbyCode={lobby.code} viewerUid={uid} targetUid={p.uid} />
+              p.uid !== uid && (
+                <SuspicionSelect lobbyCode={lobby.code} gameNumber={lobby.gameNumber} viewerUid={uid} targetUid={p.uid} />
+              )
             )}
             {!p.alive && <RevealedWill lobbyId={lobby.code} uid={p.uid} />}
           </li>

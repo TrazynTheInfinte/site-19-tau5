@@ -4,8 +4,11 @@ import { resetGameplayData } from '../firebase/repository/gameplayRepository'
 import { updateLobby } from '../firebase/repository/lobbyRepository'
 
 /** Host-triggered from the end screen: wipes the finished game's data and returns everyone
- * still in the roster to the pre-game lobby, alive, to play again with the same group. */
-export async function restartGame(lobbyId: string, playerUids: string[]): Promise<void> {
+ * still in the roster to the pre-game lobby, alive, to play again with the same group.
+ * currentGameNumber must be the lobby's gameNumber as read by the caller just before this
+ * runs - incrementing it is what lets every player's browser (not just the host's) tell that
+ * client-local state like suspicion guesses belongs to a finished game and should be ignored. */
+export async function restartGame(lobbyId: string, playerUids: string[], currentGameNumber: number): Promise<void> {
   await resetGameplayData(lobbyId)
 
   try {
@@ -28,6 +31,7 @@ export async function restartGame(lobbyId: string, playerUids: string[]): Promis
       personalWinners: [],
       tomeHolderUid: null,
       showdown: null,
+      gameNumber: currentGameNumber + 1,
     })
   } catch (e) {
     throw new Error(`restartGame: updating lobby doc failed - ${e instanceof Error ? e.message : e}`)
