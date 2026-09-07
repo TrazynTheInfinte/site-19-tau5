@@ -124,7 +124,7 @@ export default function PlayerList() {
   return (
     <div className="card">
       <h3>Personnel</h3>
-      <ul className="plain">
+      <ul className="plain" style={{ maxHeight: '220px', overflowY: 'auto' }}>
         {sorted.map((p) => (
           <li
             key={p.uid}

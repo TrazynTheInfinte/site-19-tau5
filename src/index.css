@@ -382,6 +382,27 @@ label { color: var(--text-muted); font-size: 0.85rem; }
     overflow-y: auto;
     padding-right: 2px;
   }
+
+  /* The sidebar/main columns already scroll internally rather than the whole page, but the
+     card count has grown a lot since this layout was first tuned (ghost banner, collapsible
+     role card, Showdown, cycle dividers in chat/whispers) - tightening spacing specifically
+     here (not globally, so Home/Lobby stay at normal density) reclaims enough room that a
+     typical game fits without hitting that internal scroll at all. */
+  .game-shell .card,
+  .game-shell details.card {
+    padding: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
+  .game-shell h2,
+  .game-shell h3 {
+    margin-bottom: var(--space-1);
+  }
+
+  .game-shell .phase-banner {
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+  }
 }
 
 .collapsible summary {
