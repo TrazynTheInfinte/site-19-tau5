@@ -19,7 +19,7 @@ const FACTION_LABEL: Record<Faction, string> = {
 
 function resultText(payload: NightResultDoc['payload'], nameFor: (uid: string) => string): string {
   if (payload.type === 'investigate') return FACTION_LABEL[payload.targetFaction]
-  if (payload.type === 'track') return payload.acted ? 'Acted' : 'No action'
+  if (payload.type === 'track') return payload.visited ? `visited ${nameFor(payload.visited)}` : 'visited no one'
   const visited = payload.visited ? `visited ${nameFor(payload.visited)}` : 'visited no one'
   const visitedBy = payload.visitedBy.length > 0 ? `visited by ${payload.visitedBy.map(nameFor).join(', ')}` : 'visited by no one'
   return `${visited}; ${visitedBy}`

@@ -113,8 +113,9 @@ export interface TrackResult {
   type: 'track'
   actorUid: string
   targetUid: string
-  /** Whether the target submitted any night action this cycle (regardless of whether it was blocked). */
-  acted: boolean
+  /** Who the target visited this cycle (their own action's target), if anyone - regardless of
+   * whether that action was later blocked. Null means they submitted no action at all. */
+  visited: string | null
 }
 
 export interface SenseResult {

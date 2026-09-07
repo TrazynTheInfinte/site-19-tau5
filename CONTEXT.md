@@ -42,7 +42,7 @@ Domain glossary for **Site-19: Tau-5 Protocol**, an SCP-themed social deduction 
 - *Agent* — no special ability; rank-and-file staffer, just a vote.
 - *Researcher* — each night, investigate one player and learn their faction.
 - *Medical Officer* — each night, protect one player from elimination.
-- *Tracker* — each night, learns only whether a target submitted any night action at all — not what, not their faction.
+- *Tracker* — each night, learns who a target visited (the target of *their* action) — not what they did to that person, not their faction.
 - *Warden* — each night, detains a target: blocks their action and protects them from elimination, simultaneously. Once per game, may instead Execute the detained target — an unblockable kill (scaled down from Town of Salem's Jailer, which also gets a free kill on top of the jail, for this game's smaller player counts).
 - *Enforcer* — each night, either Load (up to 2 loaded) or Shoot a loaded target with a normal, blockable kill; can't shoot Night 1. If the shot connects and the target is Foundation, the weapon jams forever — no more loading or shooting. Adapted from Town of Salem's Vigilante, scaled from 3 bullets down to 2 for this game's smaller player counts and shorter cycle budget.
 

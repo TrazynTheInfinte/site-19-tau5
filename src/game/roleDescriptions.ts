@@ -6,7 +6,7 @@ export const ROLE_DESCRIPTIONS: Record<RoleId, string> = {
   researcher:
     'Each night, investigate one player and learn their faction. A Framer can disguise a target as Chaos Insurgency, which is the one thing that can make the result wrong.',
   medicalOfficer: 'Each night, protect one player from elimination.',
-  tracker: 'Each night, learn only whether a target took any action - not what, not their faction.',
+  tracker: "Each night, learn who a target visited - not what they did to them, not their faction.",
   warden:
     'Each night, detain a target: blocks their action and protects them from elimination at once. Once per game, Execute the detained target instead - an unblockable kill.',
   enforcer:

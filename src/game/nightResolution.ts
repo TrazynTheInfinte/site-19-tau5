@@ -12,13 +12,13 @@ import type { InvestigateResult, NightAction, NightResolutionResult, RoleAssignm
  *    ignores protection entirely and takes priority if both would otherwise land, since it's
  *    a once-per-game, deliberately unstoppable effect.
  * 3. Passive/read-only effects (investigate, track) resolve last. Investigate reports a
- *    framed target's faction as 'ci' regardless of their real faction; unaffected by anything
- *    else unless the actor themself was disabled in step 1.
+ *    framed target's faction as 'ci' regardless of their real faction; Track reports who its
+ *    target visited (their own action's target), whether or not that action was later
+ *    blocked - a blocked target still attempted the visit, they just didn't land it. Both are
+ *    unaffected by anything else unless the actor themself was disabled in step 1.
  */
 export function resolveNight(rawActions: NightAction[], roles: RoleAssignments): NightResolutionResult {
   const actions = applyCartographerSwaps(rawActions)
-
-  const originalActorUids = new Set(rawActions.map((a) => a.actorUid))
 
   const disabledActorUids = new Set<string>()
   for (const a of actions) {
@@ -52,12 +52,17 @@ export function resolveNight(rawActions: NightAction[], roles: RoleAssignments):
 
   const trackResults: TrackResult[] = activeActions
     .filter((a) => a.actionType === 'track')
-    .map((a) => ({
-      type: 'track' as const,
-      actorUid: a.actorUid,
-      targetUid: a.targetUid,
-      acted: originalActorUids.has(a.targetUid),
-    }))
+    .map((a) => {
+      // Excludes 'sense' the same way Whisperer's own sense-result computation does - locking
+      // in a sense target is a passive choice, not a visit in the thematic sense of the word.
+      const targetAction = actions.find((x) => x.actorUid === a.targetUid && x.actionType !== 'sense')
+      return {
+        type: 'track' as const,
+        actorUid: a.actorUid,
+        targetUid: a.targetUid,
+        visited: targetAction?.targetUid ?? null,
+      }
+    })
 
   return {
     eliminatedUid,

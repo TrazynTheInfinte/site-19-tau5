@@ -89,7 +89,7 @@ export interface NightResultDoc {
   recipientUid: string
   payload:
     | { type: 'investigate'; targetUid: string; targetFaction: Faction }
-    | { type: 'track'; targetUid: string; acted: boolean }
+    | { type: 'track'; targetUid: string; visited: string | null }
     | { type: 'sense'; targetUid: string; visited: string | null; visitedBy: string[] }
 }
 

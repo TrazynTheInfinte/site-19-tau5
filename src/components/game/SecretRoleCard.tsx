@@ -85,7 +85,8 @@ export default function SecretRoleCard() {
       )}
       {myNightResult?.payload.type === 'track' && (
         <p>
-          Last night's tracking: target {myNightResult.payload.acted ? 'took an action' : 'did not act'}.
+          Last night's tracking: target{' '}
+          {myNightResult.payload.visited ? `visited ${nameFor(myNightResult.payload.visited)}` : 'visited no one'}.
         </p>
       )}
       {myNightResult?.payload.type === 'sense' && (

@@ -118,29 +118,31 @@ describe('resolveNight', () => {
     ])
   })
 
-  it('Tracker learns whether the target submitted any action this cycle', () => {
+  it('Tracker learns who the target visited, not what they did', () => {
     const actedActions: NightAction[] = [
       { cycle: 1, actorUid: 'tracker1', actionType: 'track', targetUid: 'infiltrator1' },
       { cycle: 1, actorUid: 'infiltrator1', actionType: 'kill', targetUid: 'agent1' },
     ]
     expect(resolveNight(actedActions, baseRoles).trackResults).toEqual([
-      { type: 'track', actorUid: 'tracker1', targetUid: 'infiltrator1', acted: true },
+      { type: 'track', actorUid: 'tracker1', targetUid: 'infiltrator1', visited: 'agent1' },
     ])
 
     const idleActions: NightAction[] = [{ cycle: 1, actorUid: 'tracker1', actionType: 'track', targetUid: 'agent1' }]
     expect(resolveNight(idleActions, baseRoles).trackResults).toEqual([
-      { type: 'track', actorUid: 'tracker1', targetUid: 'agent1', acted: false },
+      { type: 'track', actorUid: 'tracker1', targetUid: 'agent1', visited: null },
     ])
   })
 
-  it("Tracker still reports 'acted: true' even if the target's action was blocked", () => {
+  it('Tracker still reports who the target visited even if that action was later blocked', () => {
     const actions: NightAction[] = [
       { cycle: 1, actorUid: 'tracker1', actionType: 'track', targetUid: 'medic1' },
       { cycle: 1, actorUid: 'medic1', actionType: 'protect', targetUid: 'agent1' },
       { cycle: 1, actorUid: 'saboteur1', actionType: 'block', targetUid: 'medic1' },
     ]
     const result = resolveNight(actions, baseRoles)
-    expect(result.trackResults).toEqual([{ type: 'track', actorUid: 'tracker1', targetUid: 'medic1', acted: true }])
+    expect(result.trackResults).toEqual([
+      { type: 'track', actorUid: 'tracker1', targetUid: 'medic1', visited: 'agent1' },
+    ])
   })
 
   it("Cartographer's swap silently redirects two other players' targets before resolution", () => {

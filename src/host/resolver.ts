@@ -286,7 +286,7 @@ export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, player
     ...result.trackResults.map((r) => ({
       cycle,
       recipientUid: r.actorUid,
-      payload: { type: 'track' as const, targetUid: r.targetUid, acted: r.acted },
+      payload: { type: 'track' as const, targetUid: r.targetUid, visited: r.visited },
     })),
     ...senseResults.map((r) => ({
       cycle,
