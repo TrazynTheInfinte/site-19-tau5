@@ -252,7 +252,7 @@ export async function resolveNightCycle(lobbyId: string, lobby: LobbyDoc, player
   const cycle = lobby.cycle
   const roles = await getAllSecretRoles(lobbyId)
   const actions = await getNightActions(lobbyId, cycle)
-  const result = resolveNight(actions, roles, lobby.tomeHolderUid)
+  const result = resolveNight(actions, roles)
   const senseResults = computeSenseResults(actions, roles)
 
   await applyPerRoleBookkeeping(lobbyId, actions, roles, players.length)

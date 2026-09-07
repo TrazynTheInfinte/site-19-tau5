@@ -33,7 +33,7 @@ export interface LobbyDoc {
   /** uids of Serpent's Hand players who've independently met their personal win condition; doesn't end the game. */
   personalWinners: string[]
   /** Chaos Insurgency's shared Tome: whoever holds it may kill as their night action regardless
-   * of role, and reads as Foundation to investigation. Null if no CI is in this game's role pool. */
+   * of role. Null if no CI is in this game's role pool. */
   tomeHolderUid: string | null
   /** Set only while phase === 'showdown'; null otherwise (including before it's ever happened). */
   showdown: ShowdownState | null

@@ -4,7 +4,7 @@ import type { RoleId } from './types'
 export const ROLE_DESCRIPTIONS: Record<RoleId, string> = {
   agent: 'No special ability. Just a vote.',
   researcher:
-    "Each night, investigate one player and learn their faction. Two things can make the result wrong: a Framer can disguise a target as Chaos Insurgency, and whoever currently holds the Tome always reads as Foundation, regardless of their real faction.",
+    'Each night, investigate one player and learn their faction. A Framer can disguise a target as Chaos Insurgency, which is the one thing that can make the result wrong.',
   medicalOfficer: 'Each night, protect one player from elimination.',
   tracker: 'Each night, learn only whether a target took any action - not what, not their faction.',
   warden:

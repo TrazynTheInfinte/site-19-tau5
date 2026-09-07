@@ -12,16 +12,10 @@ import type { InvestigateResult, NightAction, NightResolutionResult, RoleAssignm
  *    ignores protection entirely and takes priority if both would otherwise land, since it's
  *    a once-per-game, deliberately unstoppable effect.
  * 3. Passive/read-only effects (investigate, track) resolve last. Investigate reports a
- *    framed target's faction as 'ci' regardless of their real faction, and reports the
- *    current Tome holder's faction as 'foundation' regardless of their real faction (Tome
- *    immunity takes priority over a frame, though in practice nothing frames the holder).
- *    Both are unaffected by anything else unless the actor themself was disabled in step 1.
+ *    framed target's faction as 'ci' regardless of their real faction; unaffected by anything
+ *    else unless the actor themself was disabled in step 1.
  */
-export function resolveNight(
-  rawActions: NightAction[],
-  roles: RoleAssignments,
-  tomeHolderUid: string | null = null,
-): NightResolutionResult {
+export function resolveNight(rawActions: NightAction[], roles: RoleAssignments): NightResolutionResult {
   const actions = applyCartographerSwaps(rawActions)
 
   const originalActorUids = new Set(rawActions.map((a) => a.actorUid))
@@ -47,8 +41,7 @@ export function resolveNight(
     .map((a) => {
       const targetRole = roles.get(a.targetUid)
       const realFaction = targetRole ? targetRole.faction : 'foundation'
-      const reportedFaction =
-        a.targetUid === tomeHolderUid ? 'foundation' : frameTargets.has(a.targetUid) ? 'ci' : realFaction
+      const reportedFaction = frameTargets.has(a.targetUid) ? 'ci' : realFaction
       return {
         type: 'investigate' as const,
         actorUid: a.actorUid,
