@@ -39,12 +39,14 @@ service cloud.firestore {
         // kill together" (CONTEXT.md) already implied they know each other, and Anomaly
         // specifically needs to know who not to target. A query naturally excludes denied
         // docs rather than failing outright, since this is a per-document content check.
-        // Also public once the player is eliminated - roles reveal on death.
+        // Also public once the player is eliminated - roles reveal on death - and public for
+        // everyone once the game itself has ended, regardless of who's still alive.
         allow read: if request.auth.uid == uid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
           (get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.faction == 'ci' &&
            resource.data.faction == 'ci') ||
-          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == false;
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(uid)).data.alive == false ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase == 'ended';
         allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 
@@ -141,6 +143,23 @@ service cloud.firestore {
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
           (exists(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)) &&
            get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.role == 'whisperer');
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /nightChat/{msgId} {
+        // Chaos Insurgency's own channel, night only - mirrors dayChat's shape but restricted
+        // to CI (checked the same way secretRoles' CI-mutual-visibility clause is). Host bypass
+        // included from the start this time, not added later after a restart breaks (see the
+        // whispers collection's comment above for how that went the first time) - resetGameplayData's
+        // getDocs() needs every document in a collection to be readable by the host, not just some.
+        allow create: if request.auth.uid == request.resource.data.authorUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase == 'night' &&
+          exists(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.faction == 'ci';
+        allow read: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid ||
+          (exists(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)) &&
+           get(/databases/$(database)/documents/lobbies/$(lobbyId)/secretRoles/$(request.auth.uid)).data.faction == 'ci');
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 

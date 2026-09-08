@@ -19,6 +19,7 @@ import type {
   DayChatDoc,
   GhostTipDoc,
   NightActionDoc,
+  NightChatDoc,
   NightResultDoc,
   PublicCycleLogDoc,
   PuppeteerOverrideDoc,
@@ -51,6 +52,7 @@ const GAMEPLAY_COLLECTIONS = [
   'puppeteerOverrides',
   'tomeTransfers',
   'dayChat',
+  'nightChat',
   'whispers',
   'showdownPulls',
   'secretRoles',
@@ -324,6 +326,18 @@ export async function sendDayChatMessage(lobbyId: string, msg: Omit<DayChatDoc, 
 export function subscribeDayChat(lobbyId: string, cb: (messages: DayChatDoc[]) => void): Unsubscribe {
   return onSnapshot(col(lobbyId, 'dayChat'), (snap) =>
     cb(snap.docs.map((d) => d.data() as DayChatDoc).sort((a, b) => a.sentAt - b.sentAt)),
+  )
+}
+
+// ---- nightChat (Chaos Insurgency only, night-only - enforced in firestore.rules, not here) ----
+
+export async function sendNightChatMessage(lobbyId: string, msg: Omit<NightChatDoc, 'sentAt'>): Promise<void> {
+  await addDoc(col(lobbyId, 'nightChat'), { ...msg, sentAt: Date.now() } satisfies NightChatDoc)
+}
+
+export function subscribeNightChat(lobbyId: string, cb: (messages: NightChatDoc[]) => void): Unsubscribe {
+  return onSnapshot(col(lobbyId, 'nightChat'), (snap) =>
+    cb(snap.docs.map((d) => d.data() as NightChatDoc).sort((a, b) => a.sentAt - b.sentAt)),
   )
 }
 

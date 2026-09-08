@@ -345,6 +345,21 @@ label { color: var(--text-muted); font-size: 0.85rem; }
   50% { box-shadow: 0 0 18px rgba(226, 83, 74, 0.2); }
 }
 
+.end-screen-enter {
+  animation: end-screen-enter 0.5s ease-out;
+}
+
+@keyframes end-screen-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ---- Game screen: no-scroll sidebar layout at desktop sizes ---- */
 /* Below the breakpoint this is inert - GameRoute just renders as normal stacked, scrolling
    cards (same markup either way; only these rules change how it's arranged). */

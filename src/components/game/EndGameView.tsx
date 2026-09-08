@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useLobby } from '../../context/LobbyContext'
 import { useGameState } from '../../context/GameStateContext'
 import { setPlayerConnected } from '../../firebase/repository/lobbyRepository'
+import { getAllSecretRoles } from '../../firebase/repository/gameplayRepository'
 import { restartGame } from '../../host/restartGame'
-import { ROLE_DEFINITIONS } from '../../game/types'
+import { ROLE_DEFINITIONS, type RoleAssignments } from '../../game/types'
+import { ROLE_ICONS } from '../../game/roleIcons'
+import Icon from '../icons/Icon'
 import CycleLog from './CycleLog'
 
 const WINNER_LABEL: Record<string, string> = {
@@ -27,6 +30,18 @@ export default function EndGameView() {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [allRoles, setAllRoles] = useState<RoleAssignments | null>(null)
+
+  useEffect(() => {
+    if (!lobbyId) return
+    let cancelled = false
+    getAllSecretRoles(lobbyId).then((roles) => {
+      if (!cancelled) setAllRoles(roles)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [lobbyId])
 
   if (!lobby || !lobbyId || !uid) return null
   const nameFor = (targetUid: string) => players.find((p) => p.uid === targetUid)?.displayName ?? targetUid
@@ -58,7 +73,10 @@ export default function EndGameView() {
 
   return (
     <div>
-      <div className="card" style={{ borderColor: winnerColor, textAlign: 'center', padding: 'var(--space-4)' }}>
+      <div
+        className="card end-screen-enter"
+        style={{ borderColor: winnerColor, textAlign: 'center', padding: 'var(--space-4)' }}
+      >
         <span className="field-label">Debrief</span>
         <h1 style={{ color: winnerColor, margin: 0 }}>{lobby.winner ? WINNER_LABEL[lobby.winner] : 'Unresolved'}</h1>
         {lobby.personalWinners.length > 0 && (
@@ -75,6 +93,37 @@ export default function EndGameView() {
           <p className="muted" style={{ marginTop: 'var(--space-3)' }}>
             You were <strong className={`faction-${myRole.faction}`}>{ROLE_DEFINITIONS[myRole.role].name}</strong>
           </p>
+        )}
+      </div>
+
+      <div className="card end-screen-enter" style={{ animationDelay: '0.12s', animationFillMode: 'backwards' }}>
+        <h3>Full roster</h3>
+        {allRoles ? (
+          <ul className="plain">
+            {players.map((p) => {
+              const assignment = allRoles.get(p.uid)
+              if (!assignment) return null
+              const def = ROLE_DEFINITIONS[assignment.role]
+              return (
+                <li
+                  key={p.uid}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.3rem 0',
+                    borderBottom: '1px solid var(--border-default)',
+                  }}
+                >
+                  <Icon svg={ROLE_ICONS[assignment.role]} size={18} className={`faction-${def.faction}`} />
+                  <span style={{ minWidth: '120px' }}>{p.displayName}</span>
+                  <span className={`faction-${def.faction}`}>{def.name}</span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="faint">Loading...</p>
         )}
       </div>
 

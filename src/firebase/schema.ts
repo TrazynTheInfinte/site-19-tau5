@@ -156,6 +156,15 @@ export interface DayChatDoc {
   sentAt: number
 }
 
+/** Chaos Insurgency's own night-only channel - "the CI team chooses a kill together" already
+ * implied they could talk it over; this makes that talk actually happen in-app. */
+export interface NightChatDoc {
+  authorUid: string
+  cycle: number
+  message: string
+  sentAt: number
+}
+
 /** A private message to one other player. Readable by the two participants, plus anyone
  * whose role is Whisperer (their passive power is hearing every whisper's content). */
 export interface WhisperDoc {

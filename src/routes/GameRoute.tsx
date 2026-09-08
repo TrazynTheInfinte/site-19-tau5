@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext'
 import { useLobby } from '../context/LobbyContext'
+import { useGameState } from '../context/GameStateContext'
 import SecretRoleCard from '../components/game/SecretRoleCard'
 import BriefingView from '../components/game/BriefingView'
 import NightPhaseView from '../components/game/NightPhaseView'
@@ -18,12 +19,14 @@ import AbilityLog from '../components/game/AbilityLog'
 import PuppeteerControl from '../components/game/PuppeteerControl'
 import TomeControl from '../components/game/TomeControl'
 import DayChatPanel from '../components/game/DayChatPanel'
+import NightChatPanel from '../components/game/NightChatPanel'
 import WhisperPanel from '../components/game/WhisperPanel'
 import HostDevPanel from '../components/devpanel/HostDevPanel'
 
 export default function GameRoute() {
   const { uid } = useAuth()
   const { lobby, players } = useLobby()
+  const { myRole } = useGameState()
 
   if (!lobby || !uid) return null
 
@@ -57,6 +60,7 @@ export default function GameRoute() {
         <div className="game-shell__main">
           {lobby.phase === 'briefing' && <BriefingView />}
           {lobby.phase === 'night' && <NightPhaseView />}
+          {lobby.phase === 'night' && myRole?.faction === 'ci' && <NightChatPanel />}
           {lobby.phase === 'discussion' && <DiscussionView />}
           {lobby.phase === 'showdown' && <ShowdownView />}
           {(lobby.phase === 'voting' || lobby.phase === 'overtime') && (
