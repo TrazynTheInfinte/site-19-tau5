@@ -3,10 +3,25 @@ import type { RoleId, Faction, NightActionType } from '../game/types'
 export type LobbyStatus = 'lobby' | 'in_progress' | 'ended'
 // 'briefing' is cycle 0: an opening talk-only day before Night 1 - timed like discussion, but
 // with no voting at all (nobody's died yet, so nothing to vote on anyway). Every other cycle's
-// day is 'discussion' (talk, skippable once everyone's ready) followed by 'voting' (cast votes).
-// 'overtime' skips discussion entirely - it's a forced, no-abstain, sudden-death vote only.
+// day is 'discussion' (talk, skippable once everyone's ready), then a Town of Salem 2 style
+// trial loop: 'accusation' (vote to put someone on trial; majority required) -> if reached,
+// 'defense' (only the accused may speak) -> 'judgment' (everyone else votes Guilty/Innocent) -
+// pardoned/tied loops back to a fresh 'accusation', up to 3 trials total, guilty ends the day
+// immediately. See LobbyDoc.trial for the live state carried across that loop.
+// 'overtime' skips discussion AND the trial loop entirely - it's a forced, no-abstain, single
+// sudden-death vote only (see VoteDoc/OvertimeVoteView - unrelated to the trial collections).
 // 'showdown' preempts the normal cycle flow entirely - see LobbyDoc.showdown.
-export type GamePhase = 'lobby' | 'briefing' | 'night' | 'discussion' | 'voting' | 'overtime' | 'showdown' | 'ended'
+export type GamePhase =
+  | 'lobby'
+  | 'briefing'
+  | 'night'
+  | 'discussion'
+  | 'accusation'
+  | 'defense'
+  | 'judgment'
+  | 'overtime'
+  | 'showdown'
+  | 'ended'
 
 /** Live state for the Enforcer-vs-last-CI Showdown minigame (see CONTEXT.md). chamberPosition
  * is rolled once, up front, and safe to read publicly - no player action affects who it lands
@@ -19,6 +34,16 @@ export interface ShowdownState {
   loserUid: string | null
 }
 
+/** Live state for the day's trial loop (see CONTEXT.md's Trial entry). trialNumber is which
+ * attempt this is (1-3, one per accusation window this cycle, whether or not it reached a
+ * trial); accusedUid is null during 'accusation' itself and set once majority is reached, for
+ * the 'defense'/'judgment' phases that follow. Reset to null once the day ends (a conviction,
+ * or all 3 attempts exhausted with nobody convicted). */
+export interface TrialState {
+  trialNumber: number
+  accusedUid: string | null
+}
+
 export interface LobbyDoc {
   code: string
   hostUid: string
@@ -27,7 +52,7 @@ export interface LobbyDoc {
   phase: GamePhase
   cycle: number
   cycleCap: number
-  phaseDeadline: number | null // epoch ms; set for briefing/discussion/voting's hard timer, null for night's soft timer
+  phaseDeadline: number | null // epoch ms; set for briefing/discussion/accusation/defense/judgment/overtime's hard timer, null for night's soft timer
   rolePoolSelection: RoleId[]
   winner: 'foundation' | 'ci' | 'draw' | null
   /** uids of Serpent's Hand players who've independently met their personal win condition; doesn't end the game. */
@@ -37,6 +62,10 @@ export interface LobbyDoc {
   tomeHolderUid: string | null
   /** Set only while phase === 'showdown'; null otherwise (including before it's ever happened). */
   showdown: ShowdownState | null
+  /** Set from the first 'accusation' phase of a day through to that day's resolution (a
+   * conviction, or the third attempt exhausted); null otherwise, including during 'discussion',
+   * 'night', and 'overtime' (which doesn't use the trial loop at all). */
+  trial: TrialState | null
   /** Starts at 1, incremented on every restart. Client-local state that must not survive a
    * restart (suspicion guesses, notepad) is keyed by this alongside the lobby code, so a
    * restart naturally orphans the previous game's values instead of needing an explicit
@@ -93,20 +122,46 @@ export interface NightResultDoc {
     | { type: 'sense'; targetUid: string; visited: string | null; visitedBy: string[] }
 }
 
-/** A Puppeteer's once-per-game secret vote override: `targetVoterUid`'s vote is counted as
- * `forcedTarget` in the host's tally, without altering `targetVoterUid`'s own visible vote doc. */
+/** A Puppeteer's once-per-game secret override of a judgment vote: `targetVoterUid`'s Guilty/
+ * Innocent vote is counted as `forcedVerdict` in the host's tally, without altering
+ * `targetVoterUid`'s own visible vote doc. Scoped to a specific trial (cycle + trialNumber),
+ * since a single day can now carry up to 3 separate judgment votes. */
 export interface PuppeteerOverrideDoc {
   cycle: number
+  trialNumber: number
   puppeteerUid: string
   targetVoterUid: string
-  forcedTarget: string
+  forcedVerdict: 'guilty' | 'innocent'
   createdAt: number
 }
 
+/** Overtime's forced sudden-death vote only - unrelated to the trial loop's own vote
+ * collections (accusationVotes/judgmentVotes) below. */
 export interface VoteDoc {
   cycle: number
   voterUid: string
   targetUid: string | null
+  submittedAt: number
+}
+
+/** One player's accusation during a trial loop's 'accusation' phase - who they think should go
+ * to trial this attempt. Doc id == `{cycle}_{trialNumber}_{voterUid}`. */
+export interface AccusationVoteDoc {
+  cycle: number
+  trialNumber: number
+  voterUid: string
+  targetUid: string
+  submittedAt: number
+}
+
+/** One living, non-accused player's verdict during a 'judgment' phase. There's no explicit
+ * "abstain" value - not voting before the judgment timer expires simply isn't counted, the
+ * same way ToS2's own UI works (see game/trial.ts). Doc id == `{cycle}_{trialNumber}_{voterUid}`. */
+export interface JudgmentVoteDoc {
+  cycle: number
+  trialNumber: number
+  voterUid: string
+  verdict: 'guilty' | 'innocent'
   submittedAt: number
 }
 
@@ -178,4 +233,9 @@ export interface WhisperDoc {
 /** Composite doc id helper for per-cycle-per-actor collections (nightActions, nightResults, votes). */
 export function cycleDocId(cycle: number, uid: string): string {
   return `${cycle}_${uid}`
+}
+
+/** Composite doc id helper for per-trial-per-actor collections (accusationVotes, judgmentVotes). */
+export function trialDocId(cycle: number, trialNumber: number, uid: string): string {
+  return `${cycle}_${trialNumber}_${uid}`
 }

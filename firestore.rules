@@ -64,9 +64,35 @@ service cloud.firestore {
       }
 
       match /votes/{voteId} {
+        // Overtime's forced sudden-death vote only - unrelated to the trial loop's own vote
+        // collections below.
         allow create: if request.auth.uid == request.resource.data.voterUid;
         allow read: if request.auth != null;
         // Host-only: clearing prior-game data on restart.
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /accusationVotes/{voteId} {
+        // Only during 'accusation', only living players, only for the current trial attempt -
+        // not a forced choice (you can simply not accuse anyone), so no alive-check on the
+        // target, just the voter.
+        allow create: if request.auth.uid == request.resource.data.voterUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase == 'accusation' &&
+          request.resource.data.trialNumber == get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.trialNumber;
+        allow read: if request.auth != null;
+        allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
+      }
+
+      match /judgmentVotes/{voteId} {
+        // Only during 'judgment', only living players, excluding the accused (they don't get a
+        // vote on their own trial), only for the current trial attempt.
+        allow create: if request.auth.uid == request.resource.data.voterUid &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase == 'judgment' &&
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.accusedUid != request.auth.uid &&
+          request.resource.data.trialNumber == get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.trialNumber;
+        allow read: if request.auth != null;
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 
@@ -97,7 +123,8 @@ service cloud.firestore {
       }
 
       match /puppeteerOverrides/{uid} {
-        // Doc id == the Puppeteer's own uid (one override total per game). Host-only read -
+        // Doc id == the Puppeteer's own uid (one override total per game, scoped to whichever
+        // trial's judgment vote it targets via the doc's own trialNumber field). Host-only read -
         // the whole point is the target never finds out, so nobody but the resolver sees this.
         allow create: if request.auth.uid == uid;
         allow read, delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
@@ -113,10 +140,14 @@ service cloud.firestore {
 
       match /dayChat/{msgId} {
         // Only living players post (dead players' one sanctioned channel stays the anonymous
-        // ghost tip); no chat during the night, matching every other "night is silent" convention.
+        // ghost tip); no chat during the night, matching every other "night is silent"
+        // convention. During 'defense' specifically, only the accused may post - mirrors ToS2's
+        // real trial system ("only they may speak... other players can whisper").
         allow create: if request.auth.uid == request.resource.data.authorUid &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
-          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'night';
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'night' &&
+          (get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase != 'defense' ||
+           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.accusedUid == request.auth.uid);
         allow read: if request.auth != null;
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }

@@ -5,7 +5,10 @@ import SecretRoleCard from '../components/game/SecretRoleCard'
 import BriefingView from '../components/game/BriefingView'
 import NightPhaseView from '../components/game/NightPhaseView'
 import DiscussionView from '../components/game/DiscussionView'
-import VotingPhaseView from '../components/game/VotingPhaseView'
+import AccusationView from '../components/game/AccusationView'
+import DefenseView from '../components/game/DefenseView'
+import JudgmentView from '../components/game/JudgmentView'
+import OvertimeVoteView from '../components/game/OvertimeVoteView'
 import ShowdownView from '../components/game/ShowdownView'
 import GhostBanner from '../components/game/GhostBanner'
 import GhostTipFeed from '../components/game/GhostTipFeed'
@@ -63,13 +66,15 @@ export default function GameRoute() {
           {lobby.phase === 'night' && myRole?.faction === 'ci' && <NightChatPanel />}
           {lobby.phase === 'discussion' && <DiscussionView />}
           {lobby.phase === 'showdown' && <ShowdownView />}
-          {(lobby.phase === 'voting' || lobby.phase === 'overtime') && (
-            <>
-              <VotingPhaseView />
-              <PuppeteerControl />
-              <TomeControl />
-            </>
-          )}
+          {lobby.phase === 'accusation' && <AccusationView />}
+          {lobby.phase === 'defense' && <DefenseView />}
+          {lobby.phase === 'judgment' && <JudgmentView />}
+          {lobby.phase === 'overtime' && <OvertimeVoteView />}
+          {(lobby.phase === 'accusation' ||
+            lobby.phase === 'defense' ||
+            lobby.phase === 'judgment' ||
+            lobby.phase === 'overtime') && <TomeControl />}
+          {lobby.phase === 'judgment' && <PuppeteerControl />}
           {lobby.phase !== 'night' && (
             <>
               <DayChatPanel />

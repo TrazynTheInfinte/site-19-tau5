@@ -4,6 +4,7 @@ import { getAllSecretRoles } from '../../firebase/repository/gameplayRepository'
 import { updateLobby } from '../../firebase/repository/lobbyRepository'
 import { devKillPlayer, resolveNightCycle } from '../../host/resolver'
 import { ROLE_DEFINITIONS, type RoleAssignments } from '../../game/types'
+import type { LobbyDoc } from '../../firebase/schema'
 
 /** Testing-only panel, unlocked when the host's display name is exactly "Dr. Bright". Not a security boundary. */
 export default function HostDevPanel() {
@@ -21,9 +22,10 @@ export default function HostDevPanel() {
     await resolveNightCycle(lobbyId!, lobby!, players)
   }
 
+  const TIMED_PHASES: LobbyDoc['phase'][] = ['briefing', 'discussion', 'accusation', 'defense', 'judgment', 'overtime']
+
   async function forceExpireTimer() {
-    const phase = lobby!.phase
-    if (phase !== 'discussion' && phase !== 'voting' && phase !== 'overtime' && phase !== 'briefing') return
+    if (!TIMED_PHASES.includes(lobby!.phase)) return
     await updateLobby(lobbyId!, { phaseDeadline: Date.now() - 1 })
   }
 

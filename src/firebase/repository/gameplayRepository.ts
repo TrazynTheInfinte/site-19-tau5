@@ -16,8 +16,10 @@ import {
 } from 'firebase/firestore'
 import { db } from '../config'
 import type {
+  AccusationVoteDoc,
   DayChatDoc,
   GhostTipDoc,
+  JudgmentVoteDoc,
   NightActionDoc,
   NightChatDoc,
   NightResultDoc,
@@ -30,7 +32,7 @@ import type {
   WhisperDoc,
   WillDoc,
 } from '../schema'
-import { cycleDocId } from '../schema'
+import { cycleDocId, trialDocId } from '../schema'
 import type { RoleAssignments } from '../../game/types'
 
 function col(lobbyId: string, name: string) {
@@ -46,6 +48,8 @@ const GAMEPLAY_COLLECTIONS = [
   'nightActions',
   'nightResults',
   'votes',
+  'accusationVotes',
+  'judgmentVotes',
   'publicCycleLog',
   'ghostTips',
   'wills',
@@ -215,7 +219,8 @@ export function subscribeMyNightResults(
   )
 }
 
-// ---- votes (public read; each player writes only their own) ----
+// ---- votes (Overtime's forced sudden-death vote only; public read, each player writes only
+// their own - unrelated to the trial loop's own vote collections below) ----
 
 export async function submitVote(lobbyId: string, vote: Omit<VoteDoc, 'submittedAt'>): Promise<void> {
   await setDoc(doc(db, 'lobbies', lobbyId, 'votes', cycleDocId(vote.cycle, vote.voterUid)), {
@@ -234,6 +239,65 @@ export async function getVotes(lobbyId: string, cycle: number): Promise<VoteDoc[
   const q = query(col(lobbyId, 'votes'), where('cycle', '==', cycle))
   const snap = await getDocs(q)
   return snap.docs.map((d) => d.data() as VoteDoc)
+}
+
+// ---- accusationVotes ('accusation' phase - who you think should go to trial this attempt) ----
+
+export async function submitAccusationVote(
+  lobbyId: string,
+  vote: Omit<AccusationVoteDoc, 'submittedAt'>,
+): Promise<void> {
+  await setDoc(doc(db, 'lobbies', lobbyId, 'accusationVotes', trialDocId(vote.cycle, vote.trialNumber, vote.voterUid)), {
+    ...vote,
+    submittedAt: Date.now(),
+  } satisfies AccusationVoteDoc)
+}
+
+export function subscribeAccusationVotes(
+  lobbyId: string,
+  cycle: number,
+  trialNumber: number,
+  cb: (votes: AccusationVoteDoc[]) => void,
+): Unsubscribe {
+  const q = query(col(lobbyId, 'accusationVotes'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as AccusationVoteDoc)))
+}
+
+/** Host-only polling use. */
+export async function getAccusationVotes(
+  lobbyId: string,
+  cycle: number,
+  trialNumber: number,
+): Promise<AccusationVoteDoc[]> {
+  const q = query(col(lobbyId, 'accusationVotes'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => d.data() as AccusationVoteDoc)
+}
+
+// ---- judgmentVotes ('judgment' phase - Guilty/Innocent on the currently-accused player) ----
+
+export async function submitJudgmentVote(lobbyId: string, vote: Omit<JudgmentVoteDoc, 'submittedAt'>): Promise<void> {
+  await setDoc(doc(db, 'lobbies', lobbyId, 'judgmentVotes', trialDocId(vote.cycle, vote.trialNumber, vote.voterUid)), {
+    ...vote,
+    submittedAt: Date.now(),
+  } satisfies JudgmentVoteDoc)
+}
+
+export function subscribeJudgmentVotes(
+  lobbyId: string,
+  cycle: number,
+  trialNumber: number,
+  cb: (votes: JudgmentVoteDoc[]) => void,
+): Unsubscribe {
+  const q = query(col(lobbyId, 'judgmentVotes'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
+  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as JudgmentVoteDoc)))
+}
+
+/** Host-only polling use. */
+export async function getJudgmentVotes(lobbyId: string, cycle: number, trialNumber: number): Promise<JudgmentVoteDoc[]> {
+  const q = query(col(lobbyId, 'judgmentVotes'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => d.data() as JudgmentVoteDoc)
 }
 
 // ---- publicCycleLog (host writes; everyone reads) ----
@@ -291,9 +355,14 @@ export async function setPuppeteerOverride(
   } satisfies PuppeteerOverrideDoc)
 }
 
-/** Host-only. */
-export async function getPuppeteerOverride(lobbyId: string, cycle: number): Promise<PuppeteerOverrideDoc | null> {
-  const q = query(col(lobbyId, 'puppeteerOverrides'), where('cycle', '==', cycle))
+/** Host-only. Scoped to a specific trial - the Puppeteer's override only ever targets whichever
+ * judgment vote they used it during. */
+export async function getPuppeteerOverride(
+  lobbyId: string,
+  cycle: number,
+  trialNumber: number,
+): Promise<PuppeteerOverrideDoc | null> {
+  const q = query(col(lobbyId, 'puppeteerOverrides'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
   const snap = await getDocs(q)
   return snap.empty ? null : (snap.docs[0].data() as PuppeteerOverrideDoc)
 }

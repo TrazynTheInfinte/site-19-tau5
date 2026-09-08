@@ -4,7 +4,9 @@ import { useLobby } from '../../context/LobbyContext'
 import { useGameState } from '../../context/GameStateContext'
 import { submitVote } from '../../firebase/repository/gameplayRepository'
 
-export default function VotingPhaseView() {
+/** Overtime's forced sudden-death vote - unrelated to the accusation/defense/judgment trial
+ * loop, which Overtime skips entirely. Every living player must vote, no abstaining. */
+export default function OvertimeVoteView() {
   const { uid } = useAuth()
   const { lobby, players } = useLobby()
   const { currentVotes } = useGameState()
@@ -20,7 +22,6 @@ export default function VotingPhaseView() {
 
   if (!uid || !lobby) return null
 
-  const isOvertime = lobby.phase === 'overtime'
   const me = players.find((p) => p.uid === uid)
   const myVote = currentVotes.find((v) => v.voterUid === uid)
   const living = players.filter((p) => p.alive)
@@ -30,7 +31,7 @@ export default function VotingPhaseView() {
     if (v.targetUid) tallyByTarget.set(v.targetUid, (tallyByTarget.get(v.targetUid) ?? 0) + 1)
   })
 
-  async function castVote(targetUid: string | null) {
+  async function castVote(targetUid: string) {
     if (!uid || !lobby) return
     await submitVote(lobby.code, { cycle: lobby.cycle, voterUid: uid, targetUid })
   }
@@ -40,7 +41,7 @@ export default function VotingPhaseView() {
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h2 style={{ marginBottom: 0 }}>{isOvertime ? 'Overtime vote' : 'Voting'}</h2>
+        <h2 style={{ marginBottom: 0 }}>Overtime vote</h2>
         <span
           style={{
             fontFamily: 'var(--font-display)',
@@ -51,14 +52,12 @@ export default function VotingPhaseView() {
           {seconds}s
         </span>
       </div>
-      {isOvertime && <p className="faint">Sudden death: every living player must vote, no abstaining.</p>}
+      <p className="faint">Sudden death: every living player must vote, no abstaining.</p>
 
       {!me?.alive ? (
         <p className="muted">You're a ghost — you can't vote, but you can send a tip below.</p>
       ) : myVote ? (
-        <p className="muted">
-          You voted for {myVote.targetUid ? players.find((p) => p.uid === myVote.targetUid)?.displayName : 'abstain'}.
-        </p>
+        <p className="muted">You voted for {players.find((p) => p.uid === myVote.targetUid)?.displayName}.</p>
       ) : (
         <div style={{ marginTop: 'var(--space-2)' }}>
           {living
@@ -68,7 +67,6 @@ export default function VotingPhaseView() {
                 {p.displayName} ({tallyByTarget.get(p.uid) ?? 0})
               </button>
             ))}
-          {!isOvertime && <button onClick={() => castVote(null)}>Abstain</button>}
         </div>
       )}
     </div>

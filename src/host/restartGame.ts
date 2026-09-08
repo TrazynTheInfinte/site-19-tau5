@@ -31,6 +31,7 @@ export async function restartGame(lobbyId: string, playerUids: string[], current
       personalWinners: [],
       tomeHolderUid: null,
       showdown: null,
+      trial: null,
       gameNumber: currentGameNumber + 1,
     })
   } catch (e) {

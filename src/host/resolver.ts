@@ -2,18 +2,27 @@ import { useEffect, useRef } from 'react'
 import { doc, runTransaction, updateDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { resolveNight } from '../game/nightResolution'
-import { tallyVotes } from '../game/voting'
 import { isOvertimeReached, resolveOvertimeVote } from '../game/overtime'
+import { tallyAccusation, tallyJudgment } from '../game/trial'
 import { checkFactionWin, checkPersonalWins, checkSeedWins, checkSurviveToEndWins } from '../game/winConditions'
 import { nightAbilityFor } from '../game/nightActionAbilities'
 import { checkShowdownTrigger, rollChamberPosition } from '../game/showdown'
-import { DISCUSSION_DURATION_MS, VOTING_DURATION_MS } from '../game/constants'
+import {
+  ACCUSATION_DURATION_MS,
+  DEFENSE_DURATION_MS,
+  DISCUSSION_DURATION_MS,
+  JUDGMENT_DURATION_MS,
+  MAX_TRIALS_PER_DAY,
+  OVERTIME_VOTE_DURATION_MS,
+} from '../game/constants'
 import { seedTargetCount } from '../game/types'
 import { addPersonalWinners } from '../firebase/repository/lobbyRepository'
 import {
   addSeedTarget,
   consumeTomeTransfer,
+  getAccusationVotes,
   getAllSecretRoles,
+  getJudgmentVotes,
   getNightActions,
   getPuppeteerOverride,
   getShowdownPulls,
@@ -339,24 +348,138 @@ function safeResolveOvertime(votes: { voterUid: string; targetUid: string | null
   }
 }
 
-async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[]) {
-  const roles = await getAllSecretRoles(lobbyId)
-  const living = players.filter((p) => p.alive)
+/** Shared by every way a day can end without a winner: routes into Overtime if the next cycle
+ * has reached the cap, else back to a normal Night. Clears trial - unrelated once the day's over. */
+async function advanceToNextCycleOrOvertime(lobbyId: string, expectedPhase: string, lobby: LobbyDoc) {
+  const nextCycle = lobby.cycle + 1
+  if (isOvertimeReached(nextCycle, lobby.cycleCap)) {
+    await guardedAdvance(lobbyId, expectedPhase, lobby.cycle, {
+      phase: 'overtime',
+      cycle: nextCycle,
+      phaseDeadline: Date.now() + OVERTIME_VOTE_DURATION_MS,
+      trial: null,
+    })
+  } else {
+    await guardedAdvance(lobbyId, expectedPhase, lobby.cycle, {
+      phase: 'night',
+      cycle: nextCycle,
+      phaseDeadline: null,
+      trial: null,
+    })
+  }
+}
 
-  const votes = await getVotes(lobbyId, lobby.cycle)
-  const override = await getPuppeteerOverride(lobbyId, lobby.cycle)
+/** Called when the current attempt didn't end in a conviction - no majority reached during
+ * accusation, or a pardoned/tied judgment. If any of the day's MAX_TRIALS_PER_DAY attempts
+ * remain, loops straight back into a fresh accusation phase (no return to Discussion in
+ * between, matching ToS2's single continuous Day); otherwise the day ends with no elimination. */
+async function advanceTrialOrEndDay(
+  lobbyId: string,
+  expectedPhase: string,
+  lobby: LobbyDoc,
+  spentTrialNumber: number,
+) {
+  const nextTrialNumber = spentTrialNumber + 1
+  if (nextTrialNumber <= MAX_TRIALS_PER_DAY) {
+    await guardedAdvance(lobbyId, expectedPhase, lobby.cycle, {
+      phase: 'accusation',
+      phaseDeadline: Date.now() + ACCUSATION_DURATION_MS,
+      trial: { trialNumber: nextTrialNumber, accusedUid: null },
+    })
+    return
+  }
+
+  await writePublicCycleLog(lobbyId, { cycle: lobby.cycle, eliminatedUid: null, tie: true, causeOfDeath: null })
+  await advanceToNextCycleOrOvertime(lobbyId, expectedPhase, lobby)
+}
+
+/** Accusation phase: majority reached -> defense; no majority (timeout, or every living player
+ * has voted without reaching one) -> this attempt is spent. */
+async function resolveAccusationPhase(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[]) {
+  const trial = lobby.trial
+  if (!trial) return
+  const living = players.filter((p) => p.alive)
+  const votes = await getAccusationVotes(lobbyId, lobby.cycle, trial.trialNumber)
+  const { accusedUid } = tallyAccusation(votes, living.length)
+
+  if (accusedUid) {
+    await guardedAdvance(lobbyId, 'accusation', lobby.cycle, {
+      phase: 'defense',
+      phaseDeadline: Date.now() + DEFENSE_DURATION_MS,
+      trial: { trialNumber: trial.trialNumber, accusedUid },
+    })
+    return
+  }
+
+  await advanceTrialOrEndDay(lobbyId, 'accusation', lobby, trial.trialNumber)
+}
+
+/** Defense is a straight timer - only the accused may speak (enforced in firestore.rules on
+ * dayChat), nothing here to tally. */
+async function resolveDefensePhase(lobbyId: string, lobby: LobbyDoc) {
+  await guardedAdvance(lobbyId, 'defense', lobby.cycle, {
+    phase: 'judgment',
+    phaseDeadline: Date.now() + JUDGMENT_DURATION_MS,
+  })
+}
+
+/** Judgment: Guilty needs strictly more Guilty votes than Innocent (see game/trial.ts) - a
+ * conviction executes the accused and ends the day immediately; anything else is a pardon,
+ * spending this attempt the same way a no-majority accusation does. */
+async function resolveJudgmentPhase(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[]) {
+  const trial = lobby.trial
+  if (!trial?.accusedUid) return
+  const accusedUid = trial.accusedUid
+  const roles = await getAllSecretRoles(lobbyId)
+
+  const votes = await getJudgmentVotes(lobbyId, lobby.cycle, trial.trialNumber)
+  const override = await getPuppeteerOverride(lobbyId, lobby.cycle, trial.trialNumber)
   // Only the host can flip specialUsed (secretRoles writes are host-only), so this is where
   // "the Puppeteer has used their override" actually gets recorded, not at submission time.
   if (override) await markSpecialUsed(lobbyId, override.puppeteerUid)
   // Applied only to the in-memory tally, never written back to the target's own vote doc -
   // that's what keeps the override invisible to them (their UI reads their own doc, not this).
   const effectiveVotes = votes.map((v) => ({
-    voterUid: v.voterUid,
-    targetUid: override && v.voterUid === override.targetVoterUid ? override.forcedTarget : v.targetUid,
+    verdict: override && v.voterUid === override.targetVoterUid ? override.forcedVerdict : v.verdict,
   }))
 
-  const isOvertime = lobby.phase === 'overtime'
-  const tally = isOvertime ? safeResolveOvertime(effectiveVotes, living.map((p) => p.uid)) : tallyVotes(effectiveVotes)
+  const { verdict } = tallyJudgment(effectiveVotes)
+
+  if (verdict === 'innocent') {
+    await advanceTrialOrEndDay(lobbyId, 'judgment', lobby, trial.trialNumber)
+    return
+  }
+
+  await eliminatePlayer(lobbyId, accusedUid, lobby.cycle)
+  await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, accusedUid, roles, players)
+  await clearSenseTargetsOnDeath(lobbyId, roles, accusedUid)
+
+  const event: EliminationEvent = { uid: accusedUid, cause: 'vote', cycle: lobby.cycle }
+  const wins = [...checkPersonalWins(event, roles), ...checkSeedWins(toPlayerStates(players, accusedUid), roles)]
+  await addPersonalWinners(lobbyId, wins.map((w) => w.uid))
+
+  await writePublicCycleLog(lobbyId, { cycle: lobby.cycle, eliminatedUid: accusedUid, tie: false, causeOfDeath: 'vote' })
+
+  const finalStates = toPlayerStates(players, accusedUid)
+  if (await tryEnterShowdown(lobbyId, 'judgment', lobby.cycle, finalStates, roles)) return
+
+  const winner = checkFactionWin(finalStates, roles)
+  if (winner) {
+    await endGame(lobbyId, 'judgment', lobby.cycle, winner, finalStates, roles)
+    return
+  }
+
+  await advanceToNextCycleOrOvertime(lobbyId, 'judgment', lobby)
+}
+
+/** Overtime's forced sudden-death vote - unrelated to the trial loop, and always ends the game
+ * outright (a winner, or a draw) rather than looping or advancing to another cycle. */
+async function resolveOvertimePhase(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[]) {
+  const roles = await getAllSecretRoles(lobbyId)
+  const living = players.filter((p) => p.alive)
+
+  const votes = await getVotes(lobbyId, lobby.cycle)
+  const tally = safeResolveOvertime(votes, living.map((p) => p.uid))
 
   if (tally.eliminatedUid) {
     await eliminatePlayer(lobbyId, tally.eliminatedUid, lobby.cycle)
@@ -379,35 +502,10 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
   })
 
   const finalStates = toPlayerStates(players, tally.eliminatedUid)
-  if (await tryEnterShowdown(lobbyId, lobby.phase, lobby.cycle, finalStates, roles)) return
+  if (await tryEnterShowdown(lobbyId, 'overtime', lobby.cycle, finalStates, roles)) return
 
   const winner = checkFactionWin(finalStates, roles)
-
-  if (winner) {
-    await endGame(lobbyId, lobby.phase, lobby.cycle, winner, finalStates, roles)
-    return
-  }
-
-  if (isOvertime) {
-    await endGame(lobbyId, 'overtime', lobby.cycle, 'draw', finalStates, roles)
-    return
-  }
-
-  const nextCycle = lobby.cycle + 1
-  if (isOvertimeReached(nextCycle, lobby.cycleCap)) {
-    // Overtime skips discussion entirely - straight from voting into the next (forced) vote.
-    await guardedAdvance(lobbyId, 'voting', lobby.cycle, {
-      phase: 'overtime',
-      cycle: nextCycle,
-      phaseDeadline: Date.now() + VOTING_DURATION_MS,
-    })
-  } else {
-    await guardedAdvance(lobbyId, 'voting', lobby.cycle, {
-      phase: 'night',
-      cycle: nextCycle,
-      phaseDeadline: null,
-    })
-  }
+  await endGame(lobbyId, 'overtime', lobby.cycle, winner ?? 'draw', finalStates, roles)
 }
 
 /** Exported for the Dr. Bright dev panel's per-player "Kill" buttons: an instant, out-of-band
@@ -493,8 +591,9 @@ export function useHostResolver(
       if (!timerExpired && !allReady) return
       resolvingRef.current = true
       await guardedAdvance(lobbyId, 'discussion', lobby.cycle, {
-        phase: 'voting',
-        phaseDeadline: Date.now() + VOTING_DURATION_MS,
+        phase: 'accusation',
+        phaseDeadline: Date.now() + ACCUSATION_DURATION_MS,
+        trial: { trialNumber: 1, accusedUid: null },
       })
       resolvingRef.current = false
     }
@@ -572,27 +671,138 @@ export function useHostResolver(
     }
   }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.showdown?.pulls])
 
+  // Tome hand-offs run independently of every phase's own resolution/timers - a hand-off can
+  // happen any time across the whole trial loop or overtime, not just at the moment one ends.
   useEffect(() => {
     if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid) return
-    if (lobby.phase !== 'voting' && lobby.phase !== 'overtime') return
+    const tomeEligiblePhases: LobbyDoc['phase'][] = ['accusation', 'defense', 'judgment', 'overtime']
+    if (!tomeEligiblePhases.includes(lobby.phase) || !lobby.tomeHolderUid) return
     let cancelled = false
+    const holderUid = lobby.tomeHolderUid
 
     const check = async () => {
       if (cancelled) return
-      // Applying a pending Tome transfer runs independently of vote resolution/timers - a
-      // hand-off can happen any time during voting, not just at the moment voting ends.
-      if (lobby.tomeHolderUid) {
-        const transfer = await consumeTomeTransfer(lobbyId, lobby.tomeHolderUid)
-        if (transfer) {
-          const roles = await getAllSecretRoles(lobbyId)
-          const toAssignment = roles.get(transfer.toUid)
-          const toPlayer = playersRef.current.find((p) => p.uid === transfer.toUid)
-          if (toAssignment?.faction === 'ci' && toPlayer?.alive) {
-            await updateDoc(doc(db, 'lobbies', lobbyId), { tomeHolderUid: transfer.toUid })
-          }
+      const transfer = await consumeTomeTransfer(lobbyId, holderUid)
+      if (transfer) {
+        const roles = await getAllSecretRoles(lobbyId)
+        const toAssignment = roles.get(transfer.toUid)
+        const toPlayer = playersRef.current.find((p) => p.uid === transfer.toUid)
+        if (toAssignment?.faction === 'ci' && toPlayer?.alive) {
+          await updateDoc(doc(db, 'lobbies', lobbyId), { tomeHolderUid: transfer.toUid })
         }
       }
+    }
 
+    const interval = setInterval(check, DAY_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.tomeHolderUid])
+
+  // Accusation: majority reached (checked every poll, not just at timeout/all-voted) -> defense;
+  // otherwise waits for the timer or everyone living having voted before spending the attempt.
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'accusation' || !lobby.trial) return
+    let cancelled = false
+
+    const check = async () => {
+      if (resolvingRef.current || cancelled) return
+      const living = playersRef.current.filter((p) => p.alive)
+      if (living.length === 0) return
+      const votes = await getAccusationVotes(lobbyId, lobby.cycle, lobby.trial!.trialNumber)
+      const { accusedUid } = tallyAccusation(votes, living.length)
+      const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
+      const allVoted = votes.length >= living.length
+      if (!accusedUid && !timerExpired && !allVoted) return
+      resolvingRef.current = true
+      try {
+        await resolveAccusationPhase(lobbyId, lobby, playersRef.current)
+      } catch (e) {
+        console.error('resolveAccusationPhase failed', e)
+      } finally {
+        resolvingRef.current = false
+      }
+    }
+
+    const interval = setInterval(check, DAY_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline, lobby?.trial?.trialNumber])
+
+  // Defense: a straight timer, nothing to tally.
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'defense') return
+    let cancelled = false
+
+    const check = async () => {
+      if (resolvingRef.current || cancelled) return
+      const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
+      if (!timerExpired) return
+      resolvingRef.current = true
+      try {
+        await resolveDefensePhase(lobbyId, lobby)
+      } catch (e) {
+        console.error('resolveDefensePhase failed', e)
+      } finally {
+        resolvingRef.current = false
+      }
+    }
+
+    const interval = setInterval(check, DAY_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline])
+
+  // Judgment: early-exits once every living player except the accused has voted, same shape as
+  // every other early-exit-on-consensus phase in this game.
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'judgment' || !lobby.trial?.accusedUid) return
+    let cancelled = false
+
+    const check = async () => {
+      if (resolvingRef.current || cancelled) return
+      const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
+      if (!timerExpired) {
+        const eligible = playersRef.current.filter((p) => p.alive && p.uid !== lobby.trial!.accusedUid)
+        if (eligible.length === 0) return
+        const votes = await getJudgmentVotes(lobbyId, lobby.cycle, lobby.trial!.trialNumber)
+        const votedUids = new Set(votes.map((v) => v.voterUid))
+        const allVoted = eligible.every((p) => votedUids.has(p.uid))
+        if (!allVoted) return
+      }
+      resolvingRef.current = true
+      try {
+        await resolveJudgmentPhase(lobbyId, lobby, playersRef.current)
+      } catch (e) {
+        console.error('resolveJudgmentPhase failed', e)
+      } finally {
+        resolvingRef.current = false
+      }
+    }
+
+    const interval = setInterval(check, DAY_POLL_MS)
+    check()
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline, lobby?.trial?.trialNumber, lobby?.trial?.accusedUid])
+
+  // Overtime: unrelated to the trial loop - a single forced vote, same early-exit shape it
+  // always had.
+  useEffect(() => {
+    if (!lobbyId || !uid || !lobby || lobby.hostUid !== uid || lobby.phase !== 'overtime') return
+    let cancelled = false
+
+    const check = async () => {
       if (resolvingRef.current || cancelled) return
       const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
       if (!timerExpired) {
@@ -605,9 +815,9 @@ export function useHostResolver(
       }
       resolvingRef.current = true
       try {
-        await resolveVotePhase(lobbyId, lobby, playersRef.current)
+        await resolveOvertimePhase(lobbyId, lobby, playersRef.current)
       } catch (e) {
-        console.error('resolveVotePhase failed', e)
+        console.error('resolveOvertimePhase failed', e)
       } finally {
         resolvingRef.current = false
       }
@@ -619,5 +829,5 @@ export function useHostResolver(
       cancelled = true
       clearInterval(interval)
     }
-  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline, lobby?.tomeHolderUid])
+  }, [lobbyId, uid, lobby?.hostUid, lobby?.phase, lobby?.cycle, lobby?.phaseDeadline])
 }

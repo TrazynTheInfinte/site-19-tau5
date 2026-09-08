@@ -9,8 +9,9 @@ function categoryForPhase(phase: GamePhase): LoopCategory | 'ended' {
   if (phase === 'lobby' || phase === 'briefing') return 'lobby'
   if (phase === 'night') return 'night'
   if (phase === 'discussion') return 'discussion'
-  // Overtime is a forced, discussion-free vote - it uses voting's loop, not a track of its own.
-  if (phase === 'voting' || phase === 'overtime') return 'voting'
+  // The whole accusation/defense/judgment trial loop, plus Overtime's forced vote, all share
+  // the 'voting' loop uninterrupted - there's no separate track for each trial stage.
+  if (phase === 'accusation' || phase === 'defense' || phase === 'judgment' || phase === 'overtime') return 'voting'
   if (phase === 'showdown') return 'showdown'
   return 'ended'
 }
