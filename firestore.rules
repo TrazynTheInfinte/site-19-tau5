@@ -86,13 +86,18 @@ service cloud.firestore {
 
       match /judgmentVotes/{voteId} {
         // Only during 'judgment', only living players, excluding the accused (they don't get a
-        // vote on their own trial), only for the current trial attempt.
+        // vote on their own trial), only for the current trial attempt. Read is self-or-host
+        // ONLY - unlike accusationVotes/votes (broadly readable), a judgment vote must stay
+        // private: nobody should be able to tell who voted Guilty vs Innocent, only the
+        // aggregate count the resolver publishes to LobbyDoc.trial. The host still needs full
+        // read access to actually tally the real verdict (Puppeteer's override included).
         allow create: if request.auth.uid == request.resource.data.voterUid &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)/players/$(request.auth.uid)).data.alive == true &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase == 'judgment' &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.accusedUid != request.auth.uid &&
           request.resource.data.trialNumber == get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.trialNumber;
-        allow read: if request.auth != null;
+        allow read: if request.auth.uid == resource.data.voterUid ||
+          get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
 

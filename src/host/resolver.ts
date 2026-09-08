@@ -384,7 +384,7 @@ async function advanceTrialOrEndDay(
     await guardedAdvance(lobbyId, expectedPhase, lobby.cycle, {
       phase: 'accusation',
       phaseDeadline: Date.now() + ACCUSATION_DURATION_MS,
-      trial: { trialNumber: nextTrialNumber, accusedUid: null },
+      trial: { trialNumber: nextTrialNumber, accusedUid: null, guiltyCount: 0, innocentCount: 0 },
     })
     return
   }
@@ -406,7 +406,7 @@ async function resolveAccusationPhase(lobbyId: string, lobby: LobbyDoc, players:
     await guardedAdvance(lobbyId, 'accusation', lobby.cycle, {
       phase: 'defense',
       phaseDeadline: Date.now() + DEFENSE_DURATION_MS,
-      trial: { trialNumber: trial.trialNumber, accusedUid },
+      trial: { trialNumber: trial.trialNumber, accusedUid, guiltyCount: 0, innocentCount: 0 },
     })
     return
   }
@@ -593,7 +593,7 @@ export function useHostResolver(
       await guardedAdvance(lobbyId, 'discussion', lobby.cycle, {
         phase: 'accusation',
         phaseDeadline: Date.now() + ACCUSATION_DURATION_MS,
-        trial: { trialNumber: 1, accusedUid: null },
+        trial: { trialNumber: 1, accusedUid: null, guiltyCount: 0, innocentCount: 0 },
       })
       resolvingRef.current = false
     }
@@ -769,12 +769,23 @@ export function useHostResolver(
 
     const check = async () => {
       if (resolvingRef.current || cancelled) return
+      // Publishes the live Guilty/Innocent counts to lobby.trial on every poll, whether or not
+      // this tick ends up resolving - judgmentVotes itself is locked down to self-or-host in
+      // firestore.rules specifically so nobody can see who voted which way, only these totals.
+      const liveVotes = await getJudgmentVotes(lobbyId, lobby.cycle, lobby.trial!.trialNumber)
+      const liveTally = tallyJudgment(liveVotes)
+      if (liveTally.guiltyCount !== lobby.trial!.guiltyCount || liveTally.innocentCount !== lobby.trial!.innocentCount) {
+        await updateDoc(doc(db, 'lobbies', lobbyId), {
+          'trial.guiltyCount': liveTally.guiltyCount,
+          'trial.innocentCount': liveTally.innocentCount,
+        })
+      }
+
       const timerExpired = !!lobby.phaseDeadline && Date.now() >= lobby.phaseDeadline
       if (!timerExpired) {
         const eligible = playersRef.current.filter((p) => p.alive && p.uid !== lobby.trial!.accusedUid)
         if (eligible.length === 0) return
-        const votes = await getJudgmentVotes(lobbyId, lobby.cycle, lobby.trial!.trialNumber)
-        const votedUids = new Set(votes.map((v) => v.voterUid))
+        const votedUids = new Set(liveVotes.map((v) => v.voterUid))
         const allVoted = eligible.every((p) => votedUids.has(p.uid))
         if (!allVoted) return
       }

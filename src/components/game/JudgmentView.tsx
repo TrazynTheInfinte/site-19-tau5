@@ -1,26 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useLobby } from '../../context/LobbyContext'
-import { submitJudgmentVote, subscribeJudgmentVotes } from '../../firebase/repository/gameplayRepository'
+import { submitJudgmentVote, subscribeMyJudgmentVote } from '../../firebase/repository/gameplayRepository'
 import type { JudgmentVoteDoc } from '../../firebase/schema'
 
 /** Final stage of a trial: everyone but the accused votes Guilty or Innocent. Guilty needs
  * strictly more Guilty votes than Innocent (see game/trial.ts) - a tie is a pardon. Not voting
  * before the timer expires simply isn't counted either way, matching ToS2's own UI (no separate
- * "Abstain" button). */
+ * "Abstain" button). The vote is private - only your own choice is ever readable by you, and
+ * the live Guilty/Innocent tally comes from the resolver-published LobbyDoc.trial counts, never
+ * from reading other players' individual votes. */
 export default function JudgmentView() {
   const { uid } = useAuth()
   const { lobby, players } = useLobby()
-  const [votes, setVotes] = useState<JudgmentVoteDoc[]>([])
+  const [myVote, setMyVote] = useState<JudgmentVoteDoc | null>(null)
   const [remainingMs, setRemainingMs] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   const trialNumber = lobby?.trial?.trialNumber
 
   useEffect(() => {
-    if (!lobby || !trialNumber) return
-    return subscribeJudgmentVotes(lobby.code, lobby.cycle, trialNumber, setVotes)
-  }, [lobby?.code, lobby?.cycle, trialNumber])
+    if (!lobby || !trialNumber || !uid) return
+    return subscribeMyJudgmentVote(lobby.code, lobby.cycle, trialNumber, uid, setMyVote)
+  }, [lobby?.code, lobby?.cycle, trialNumber, uid])
 
   useEffect(() => {
     if (!lobby?.phaseDeadline) return
@@ -35,9 +37,6 @@ export default function JudgmentView() {
   const accusedUid = lobby.trial.accusedUid
   const accusedName = players.find((p) => p.uid === accusedUid)?.displayName ?? accusedUid
   const me = players.find((p) => p.uid === uid)
-  const myVote = votes.find((v) => v.voterUid === uid)
-  const guiltyCount = votes.filter((v) => v.verdict === 'guilty').length
-  const innocentCount = votes.filter((v) => v.verdict === 'innocent').length
   const isAccused = uid === accusedUid
 
   async function vote(verdict: 'guilty' | 'innocent') {
@@ -58,8 +57,9 @@ export default function JudgmentView() {
         <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', color: 'var(--danger)' }}>{seconds}s</span>
       </div>
       <p className="faint">
-        Guilty {guiltyCount} — Innocent {innocentCount}
+        Guilty {lobby.trial.guiltyCount} — Innocent {lobby.trial.innocentCount}
       </p>
+      <p className="faint">Votes are private — nobody can see who voted which way.</p>
 
       {isAccused ? (
         <p className="muted">You're on trial — awaiting the verdict.</p>

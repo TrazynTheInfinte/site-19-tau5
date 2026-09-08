@@ -38,10 +38,16 @@ export interface ShowdownState {
  * attempt this is (1-3, one per accusation window this cycle, whether or not it reached a
  * trial); accusedUid is null during 'accusation' itself and set once majority is reached, for
  * the 'defense'/'judgment' phases that follow. Reset to null once the day ends (a conviction,
- * or all 3 attempts exhausted with nobody convicted). */
+ * or all 3 attempts exhausted with nobody convicted).
+ * guiltyCount/innocentCount are published live by the host resolver during 'judgment' (reset to
+ * 0 the moment judgment starts) so every client can see the running tally without ever reading
+ * individual judgmentVotes docs - those are locked down to self-or-host precisely so nobody can
+ * see who voted which way, only the aggregate. */
 export interface TrialState {
   trialNumber: number
   accusedUid: string | null
+  guiltyCount: number
+  innocentCount: number
 }
 
 export interface LobbyDoc {

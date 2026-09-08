@@ -283,21 +283,31 @@ export async function submitJudgmentVote(lobbyId: string, vote: Omit<JudgmentVot
   } satisfies JudgmentVoteDoc)
 }
 
-export function subscribeJudgmentVotes(
-  lobbyId: string,
-  cycle: number,
-  trialNumber: number,
-  cb: (votes: JudgmentVoteDoc[]) => void,
-): Unsubscribe {
-  const q = query(col(lobbyId, 'judgmentVotes'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
-  return onSnapshot(q, (snap) => cb(snap.docs.map((d) => d.data() as JudgmentVoteDoc)))
-}
-
-/** Host-only polling use. */
+/** Host-only polling use - judgmentVotes' read rule is self-or-host, so this query naturally
+ * returns every doc for the host (needed to actually tally) and nothing for anyone else. */
 export async function getJudgmentVotes(lobbyId: string, cycle: number, trialNumber: number): Promise<JudgmentVoteDoc[]> {
   const q = query(col(lobbyId, 'judgmentVotes'), where('cycle', '==', cycle), where('trialNumber', '==', trialNumber))
   const snap = await getDocs(q)
   return snap.docs.map((d) => d.data() as JudgmentVoteDoc)
+}
+
+/** A player's own judgment vote only, for "did I already vote" UI feedback - deliberately a
+ * doc-id read, not a query, so even a host-who-is-also-voting only ever gets their own vote
+ * back, never everyone else's (unlike a `where` query, which the host's rules bypass would
+ * otherwise widen to every document in the collection). The live Guilty/Innocent tally comes
+ * from LobbyDoc.trial instead, published by the resolver - see game/trial.ts. */
+export function subscribeMyJudgmentVote(
+  lobbyId: string,
+  cycle: number,
+  trialNumber: number,
+  uid: string,
+  cb: (vote: JudgmentVoteDoc | null) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, 'lobbies', lobbyId, 'judgmentVotes', trialDocId(cycle, trialNumber, uid)),
+    (snap) => cb(snap.exists() ? (snap.data() as JudgmentVoteDoc) : null),
+    () => cb(null),
+  )
 }
 
 // ---- publicCycleLog (host writes; everyone reads) ----
