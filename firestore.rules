@@ -58,7 +58,13 @@ service cloud.firestore {
       }
 
       match /nightResults/{resultId} {
-        allow read: if request.auth.uid == resource.data.recipientUid ||
+        // resource == null first: subscribeMyNightResult reads a specific doc id that often
+        // doesn't exist yet (most players get no result most cycles - an Agent never gets one
+        // at all), and resource.data.recipientUid on a nonexistent doc is a rules evaluation
+        // error, not a clean false (same root cause as the judgmentVotes fix below). Harmless
+        // to allow here - there's no data on a document that doesn't exist yet.
+        allow read: if resource == null ||
+          request.auth.uid == resource.data.recipientUid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
         allow write: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }
@@ -96,7 +102,13 @@ service cloud.firestore {
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.phase == 'judgment' &&
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.accusedUid != request.auth.uid &&
           request.resource.data.trialNumber == get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.trial.trialNumber;
-        allow read: if request.auth.uid == resource.data.voterUid ||
+        // resource == null first: subscribeMyJudgmentVote reads this exact doc id before it
+        // exists (nobody's voted yet when judgment starts), and resource.data.voterUid on a
+        // nonexistent doc is a rules evaluation error, not a clean false - this is exactly the
+        // "Missing or insufficient permissions" a non-host player hit trying to vote. Harmless
+        // to allow reading a document that doesn't exist - there's no vote to see yet.
+        allow read: if resource == null ||
+          request.auth.uid == resource.data.voterUid ||
           get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
         allow delete: if get(/databases/$(database)/documents/lobbies/$(lobbyId)).data.hostUid == request.auth.uid;
       }

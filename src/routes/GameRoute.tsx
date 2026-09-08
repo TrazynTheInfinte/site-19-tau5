@@ -1,7 +1,7 @@
 import { useAuth } from '../context/AuthContext'
 import { useLobby } from '../context/LobbyContext'
 import { useGameState } from '../context/GameStateContext'
-import SecretRoleCard from '../components/game/SecretRoleCard'
+import YourRoleButton from '../components/game/YourRoleButton'
 import BriefingView from '../components/game/BriefingView'
 import NightPhaseView from '../components/game/NightPhaseView'
 import DiscussionView from '../components/game/DiscussionView'
@@ -52,9 +52,12 @@ export default function GameRoute() {
     <div className="game-shell">
       <div className={`phase-banner phase-banner--${lobby.phase}`}>
         <h1>{lobby.phase === 'overtime' ? 'Overtime' : lobby.phase}</h1>
-        <span className="phase-banner__label">
-          {lobby.phase === 'briefing' ? 'Before Night 1' : `Cycle ${lobby.cycle} / ${lobby.cycleCap}`}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <span className="phase-banner__label">
+            {lobby.phase === 'briefing' ? 'Before Night 1' : `Cycle ${lobby.cycle} / ${lobby.cycleCap}`}
+          </span>
+          <YourRoleButton />
+        </div>
       </div>
 
       {!me?.alive && <GhostBanner />}
@@ -85,10 +88,6 @@ export default function GameRoute() {
         </div>
 
         <div className="game-shell__sidebar">
-          <details className="card collapsible" open>
-            <summary>Your role</summary>
-            <SecretRoleCard />
-          </details>
           <PlayerList />
           <GhostTipFeed />
           {me?.alive && (

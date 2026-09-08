@@ -23,10 +23,16 @@ const WINNER_COLOR: Record<string, string> = {
   draw: 'var(--text-muted)',
 }
 
+const CAUSE_LABEL: Record<string, string> = {
+  vote: 'voted out',
+  kill: 'killed at night',
+  showdown: 'lost the Showdown',
+}
+
 export default function EndGameView() {
   const { uid } = useAuth()
   const { lobbyId, lobby, players } = useLobby()
-  const { myRole } = useGameState()
+  const { myRole, publicCycleLog } = useGameState()
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +53,9 @@ export default function EndGameView() {
   const nameFor = (targetUid: string) => players.find((p) => p.uid === targetUid)?.displayName ?? targetUid
   const isHost = lobby.hostUid === uid
   const winnerColor = lobby.winner ? WINNER_COLOR[lobby.winner] : 'var(--text-muted)'
+  const deathByUid = new Map(
+    publicCycleLog.filter((e) => e.eliminatedUid).map((e) => [e.eliminatedUid as string, e]),
+  )
 
   async function handleRestart() {
     setBusy(true)
@@ -104,6 +113,7 @@ export default function EndGameView() {
               const assignment = allRoles.get(p.uid)
               if (!assignment) return null
               const def = ROLE_DEFINITIONS[assignment.role]
+              const death = deathByUid.get(p.uid)
               return (
                 <li
                   key={p.uid}
@@ -118,6 +128,13 @@ export default function EndGameView() {
                   <Icon svg={ROLE_ICONS[assignment.role]} size={18} className={`faction-${def.faction}`} />
                   <span style={{ minWidth: '120px' }}>{p.displayName}</span>
                   <span className={`faction-${def.faction}`}>{def.name}</span>
+                  {death ? (
+                    <span className="faint">
+                      — {CAUSE_LABEL[death.causeOfDeath ?? ''] ?? 'eliminated'}, cycle {death.cycle}
+                    </span>
+                  ) : (
+                    <span className="faint">— survived</span>
+                  )}
                 </li>
               )
             })}
