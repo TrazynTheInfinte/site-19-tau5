@@ -14,6 +14,31 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
   return arr
 }
 
+function makeAssignment(uid: string, role: RoleId): RoleAssignment {
+  return {
+    uid,
+    role,
+    faction: ROLE_DEFINITIONS[role].faction,
+    markedTargetUid: null,
+    saboteurUsed: false,
+    specialUsed: false,
+    bulletsLoaded: 0,
+    gunJammed: false,
+    senseTargetUid: null,
+    seededUids: [],
+  }
+}
+
+/** Mutates in place: gives theMarked a random Foundation target, if both are present. */
+function assignMarkedTarget(assignments: RoleAssignments, rng: Rng): void {
+  const marked = [...assignments.values()].find((a) => a.role === 'theMarked')
+  if (!marked) return
+  const foundationUids = [...assignments.values()].filter((a) => a.faction === 'foundation').map((a) => a.uid)
+  if (foundationUids.length === 0) return
+  const target = foundationUids[Math.floor(rng() * foundationUids.length)]
+  assignments.set(marked.uid, { ...marked, markedTargetUid: target } satisfies RoleAssignment)
+}
+
 /**
  * Assigns one role per player from `enabledRoles`, satisfying the three invariants from
  * ADR-0002: Foundation is always the majority faction, at least one CI role is present, and
@@ -75,29 +100,56 @@ export function assignRoles(playerUids: string[], enabledRoles: RoleId[], rng: R
 
   const assignments: RoleAssignments = new Map()
   shuffledPlayers.forEach((uid, i) => {
-    const role = shuffledRoles[i]
-    assignments.set(uid, {
-      uid,
-      role,
-      faction: ROLE_DEFINITIONS[role].faction,
-      markedTargetUid: null,
-      saboteurUsed: false,
-      specialUsed: false,
-      bulletsLoaded: 0,
-      gunJammed: false,
-      senseTargetUid: null,
-      seededUids: [],
-    })
+    assignments.set(uid, makeAssignment(uid, shuffledRoles[i]))
   })
 
-  const marked = [...assignments.values()].find((a) => a.role === 'theMarked')
-  if (marked) {
-    const foundationUids = [...assignments.values()].filter((a) => a.faction === 'foundation').map((a) => a.uid)
-    if (foundationUids.length > 0) {
-      const target = foundationUids[Math.floor(rng() * foundationUids.length)]
-      assignments.set(marked.uid, { ...marked, markedTargetUid: target } satisfies RoleAssignment)
-    }
+  assignMarkedTarget(assignments, rng)
+
+  return assignments
+}
+
+/**
+ * Debug-only alternative to assignRoles: forces a specific role onto anyone named in
+ * `overrides` (uid -> RoleId), and randomly fills the rest of the roster from whatever roles
+ * are left in the pool. Deliberately skips assignRoles' faction-plurality/CI/Serpent's-Hand
+ * invariant checks entirely - the whole point of a manual override is to reach game states
+ * normal random assignment wouldn't (e.g. constructing a specific 2-player endgame to test
+ * Showdown), so enforcing "balanced" invariants here would defeat the purpose.
+ */
+export function assignRolesWithOverrides(
+  playerUids: string[],
+  enabledRoles: RoleId[],
+  overrides: Map<string, RoleId>,
+  rng: Rng,
+): RoleAssignments {
+  const n = playerUids.length
+  if (n === 0) throw new Error('assignRolesWithOverrides: no players')
+
+  // Deliberately no "pool size >= player count" pre-check here (unlike assignRoles) - an
+  // override can force a role that isn't even in enabledRoles, so the pool only needs to cover
+  // the players left AFTER overrides, which the check below (using remainingRoles) verifies.
+  const usedRoles = new Set(overrides.values())
+  if (usedRoles.size !== overrides.size) {
+    throw new Error('assignRolesWithOverrides: the same role was forced onto more than one player')
   }
+
+  const remainingPlayers = playerUids.filter((uid) => !overrides.has(uid))
+  const remainingRoles = shuffle(
+    enabledRoles.filter((r) => !usedRoles.has(r)),
+    rng,
+  )
+  if (remainingRoles.length < remainingPlayers.length) {
+    throw new Error('assignRolesWithOverrides: not enough remaining roles for the remaining players')
+  }
+
+  const assignments: RoleAssignments = new Map()
+  let nextRoleIndex = 0
+  for (const uid of playerUids) {
+    const role = overrides.get(uid) ?? remainingRoles[nextRoleIndex++]
+    assignments.set(uid, makeAssignment(uid, role))
+  }
+
+  assignMarkedTarget(assignments, rng)
 
   return assignments
 }

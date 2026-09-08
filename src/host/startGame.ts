@@ -1,14 +1,24 @@
 import { doc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { assignRoles } from '../game/roleAssignment'
+import { assignRoles, assignRolesWithOverrides } from '../game/roleAssignment'
 import { updateLobby } from '../firebase/repository/lobbyRepository'
 import { writeSecretRoles } from '../firebase/repository/gameplayRepository'
 import { BRIEFING_DURATION_MS } from '../game/constants'
 import type { RoleId } from '../game/types'
 
-/** Host-triggered: randomizes roles (ADR-0002 invariants) and moves the lobby into play. */
-export async function startGame(lobbyId: string, playerUids: string[], enabledRoles: RoleId[]): Promise<void> {
-  const assignments = assignRoles(playerUids, enabledRoles, Math.random)
+/** Host-triggered: randomizes roles (ADR-0002 invariants) and moves the lobby into play.
+ * `roleOverrides`, if given, is the Dr. Bright dev panel's per-player forced-role map - see
+ * assignRolesWithOverrides for why that path skips the usual balance invariants entirely. */
+export async function startGame(
+  lobbyId: string,
+  playerUids: string[],
+  enabledRoles: RoleId[],
+  roleOverrides?: Map<string, RoleId>,
+): Promise<void> {
+  const assignments =
+    roleOverrides && roleOverrides.size > 0
+      ? assignRolesWithOverrides(playerUids, enabledRoles, roleOverrides, Math.random)
+      : assignRoles(playerUids, enabledRoles, Math.random)
   await writeSecretRoles(lobbyId, assignments)
 
   // The Tome starts with the Infiltrator (closest thing this game has to a "Coven Leader"),

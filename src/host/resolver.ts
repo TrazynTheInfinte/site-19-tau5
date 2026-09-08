@@ -410,6 +410,30 @@ async function resolveVotePhase(lobbyId: string, lobby: LobbyDoc, players: Playe
   }
 }
 
+/** Exported for the Dr. Bright dev panel's per-player "Kill" buttons: an instant, out-of-band
+ * elimination that runs the same downstream bookkeeping a real kill/vote does (Tome reassignment,
+ * Whisperer sense-target clearing, personal-win checks, a Showdown trigger check, and a faction-
+ * win check) without waiting for or interfering with whatever phase is currently in progress -
+ * night/voting resolution, once it happens, proceeds exactly as if this had been a normal death.
+ * Uses the 'kill' cause (closest existing fit for an off-screen elimination; deliberately not
+ * 'vote', so it can't spuriously trigger The Fool). */
+export async function devKillPlayer(lobbyId: string, lobby: LobbyDoc, players: PlayerWithId[], targetUid: string) {
+  const roles = await getAllSecretRoles(lobbyId)
+  await eliminatePlayer(lobbyId, targetUid, lobby.cycle)
+  await reassignTomeIfHolderDied(lobbyId, lobby.tomeHolderUid, targetUid, roles, players)
+  await clearSenseTargetsOnDeath(lobbyId, roles, targetUid)
+
+  const finalStates = toPlayerStates(players, targetUid)
+  const event: EliminationEvent = { uid: targetUid, cause: 'kill', cycle: lobby.cycle }
+  const wins = [...checkPersonalWins(event, roles), ...checkSeedWins(finalStates, roles)]
+  await addPersonalWinners(lobbyId, wins.map((w) => w.uid))
+
+  if (await tryEnterShowdown(lobbyId, lobby.phase, lobby.cycle, finalStates, roles)) return
+
+  const winner = checkFactionWin(finalStates, roles)
+  if (winner) await endGame(lobbyId, lobby.phase, lobby.cycle, winner, finalStates, roles)
+}
+
 /** Runs only in the current host's tab. Watches the live phase/cycle and resolves each one automatically. */
 export function useHostResolver(
   lobbyId: string | null,

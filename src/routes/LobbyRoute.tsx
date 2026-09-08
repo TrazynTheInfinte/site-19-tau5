@@ -18,9 +18,12 @@ export default function LobbyRoute() {
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
   const [leaving, setLeaving] = useState(false)
+  const [roleOverrides, setRoleOverrides] = useState<Record<string, RoleId | ''>>({})
 
   if (!lobbyId || !lobby || !uid) return null
   const isHost = lobby.hostUid === uid
+  const me = players.find((p) => p.uid === uid)
+  const isDrBright = isHost && me?.displayName === 'Dr. Bright'
   const shareUrl = `${window.location.origin}/lobby/${lobby.code}`
 
   async function handleLeave() {
@@ -47,7 +50,11 @@ export default function LobbyRoute() {
     setStarting(true)
     setError(null)
     try {
-      await startGame(lobbyId!, players.map((p) => p.uid), lobby!.rolePoolSelection)
+      const overrides = new Map<string, RoleId>()
+      for (const [playerUid, role] of Object.entries(roleOverrides)) {
+        if (role) overrides.set(playerUid, role)
+      }
+      await startGame(lobbyId!, players.map((p) => p.uid), lobby!.rolePoolSelection, overrides)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start game')
     } finally {
@@ -122,6 +129,36 @@ export default function LobbyRoute() {
                   </label>
                 ))}
               </div>
+            </div>
+          )}
+
+          {isDrBright && (
+            <div className="card" style={{ borderColor: 'var(--accent)' }}>
+              <h3>[Dr. Bright dev panel] Assign roles</h3>
+              <p className="faint">Random by default. Forcing a role skips the usual balance rules entirely.</p>
+              <ul className="plain">
+                {players.map((p) => (
+                  <li
+                    key={p.uid}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.3rem 0' }}
+                  >
+                    <span style={{ minWidth: '120px' }}>{p.displayName}</span>
+                    <select
+                      value={roleOverrides[p.uid] ?? ''}
+                      onChange={(e) =>
+                        setRoleOverrides((prev) => ({ ...prev, [p.uid]: e.target.value as RoleId | '' }))
+                      }
+                    >
+                      <option value="">Random</option>
+                      {ALL_ROLE_IDS.map((role) => (
+                        <option key={role} value={role}>
+                          {ROLE_DEFINITIONS[role].name}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>

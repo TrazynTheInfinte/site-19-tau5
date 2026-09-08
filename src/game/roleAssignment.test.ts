@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assignRoles } from './roleAssignment'
+import { assignRoles, assignRolesWithOverrides } from './roleAssignment'
 import { ALL_ROLE_IDS, ROLE_DEFINITIONS } from './types'
 
 // Deterministic seeded RNG (mulberry32) so tests are reproducible.
@@ -84,5 +84,56 @@ describe('assignRoles', () => {
 
   it('throws a clear error for a player count too small to give a Foundation plurality', () => {
     expect(() => assignRoles(['p1', 'p2', 'p3'], ALL_ROLE_IDS, seededRng(1))).toThrow(/cannot form a Foundation plurality/)
+  })
+})
+
+describe('assignRolesWithOverrides', () => {
+  it('forces the overridden roles and fills the rest at random, with no duplicates', () => {
+    const overrides = new Map([
+      ['p1', 'enforcer' as const],
+      ['p2', 'infiltrator' as const],
+    ])
+    const assignments = assignRolesWithOverrides(players, ALL_ROLE_IDS, overrides, seededRng(3))
+    expect(assignments.get('p1')?.role).toBe('enforcer')
+    expect(assignments.get('p2')?.role).toBe('infiltrator')
+    const rolesUsed = [...assignments.values()].map((a) => a.role)
+    expect(new Set(rolesUsed).size).toBe(rolesUsed.length)
+    expect(assignments.size).toBe(players.length)
+  })
+
+  it('does not enforce the faction-plurality invariant - deliberately reachable states assignRoles would reject', () => {
+    // All five distinct Foundation roles forced, one per player - no CI, no Serpent's Hand at all.
+    const foundationRoles = ['agent', 'researcher', 'medicalOfficer', 'tracker', 'warden'] as const
+    const overrides = new Map(players.map((uid, i) => [uid, foundationRoles[i]]))
+    const assignments = assignRolesWithOverrides(players, ALL_ROLE_IDS, overrides, seededRng(1))
+    expect([...assignments.values()].every((a) => a.faction === 'foundation')).toBe(true)
+  })
+
+  it('throws if the same role is forced onto two different players', () => {
+    const overrides = new Map([
+      ['p1', 'agent' as const],
+      ['p2', 'agent' as const],
+    ])
+    expect(() => assignRolesWithOverrides(players, ALL_ROLE_IDS, overrides, seededRng(1))).toThrow(
+      /forced onto more than one player/,
+    )
+  })
+
+  it('still assigns theMarked a Foundation target when unforced, in play, and a Foundation role happens to be present', () => {
+    // Unlike assignRoles, there's no balance guarantee here - a random 5-of-16 pick can
+    // legitimately include zero Foundation roles, in which case no target should be assigned.
+    for (let seed = 0; seed < 50; seed++) {
+      const assignments = assignRolesWithOverrides(players, ALL_ROLE_IDS, new Map(), seededRng(seed))
+      const marked = [...assignments.values()].find((a) => a.role === 'theMarked')
+      if (!marked) continue
+      const hasFoundation = [...assignments.values()].some((a) => a.faction === 'foundation')
+      if (hasFoundation) {
+        expect(marked.markedTargetUid).not.toBeNull()
+        const target = assignments.get(marked.markedTargetUid!)
+        expect(target?.faction).toBe('foundation')
+      } else {
+        expect(marked.markedTargetUid).toBeNull()
+      }
+    }
   })
 })
